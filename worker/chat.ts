@@ -2,23 +2,21 @@ import OpenAI from 'openai';
 import type { Message, ToolCall } from './types';
 import { getToolDefinitions, executeTool } from './tools';
 import { ChatCompletionMessageFunctionToolCall } from 'openai/resources/index.mjs';
-
-/**
- * ChatHandler - Handles all chat-related operations
- * 
- * This class encapsulates the OpenAI integration and tool execution logic,
- * making it easy for AI developers to understand and extend the functionality.
- */
+const SYSTEM_PROMPT = `You are SourceAI, an elite Senior Procurement Specialist for a Fortune 500 manufacturing firm.
+Your primary goal is to provide precise, data-driven supplier intelligence for industrial parts and materials.
+GUIDELINES:
+1. When a user asks about sourcing a part, material, or supplier, ALWAYS prioritize the 'find_suppliers' tool.
+2. Present all supplier data in a professional Markdown table with these exact columns: | Company | Contact | Last Order | Reliability | Lead Time |.
+3. Maintain a tone that is professional, authoritative, and efficient.
+4. If a tool fails, inform the user with a professional explanation (e.g., "I am currently unable to access the historical supplier database for this specific component.")
+5. Always summarize the findings after presenting a table, highlighting the best choice based on reliability and lead time.`;
 export class ChatHandler {
   private client?: OpenAI;
   private model: string;
-
   private isMock: boolean = false;
-
   constructor(aiGatewayUrl: string, apiKey: string, model: string) {
     if (!aiGatewayUrl || !apiKey) {
       this.isMock = true;
-      console.log('Mock ChatHandler activated - missing credentials');
       this.model = model;
       return;
     }
@@ -26,13 +24,8 @@ export class ChatHandler {
       baseURL: aiGatewayUrl,
       apiKey: apiKey
     });
-    console.log("BASE URL", aiGatewayUrl);
     this.model = model;
   }
-
-  /**
-   * Process a user message and generate AI response with optional tool usage
-   */
   async processMessage(
     message: string,
     conversationHistory: Message[],
@@ -42,35 +35,19 @@ export class ChatHandler {
     toolCalls?: ToolCall[];
   }> {
     if (this.isMock) {
-      const mockResponse = `## Supplier Search Results for "${message}"
-
-| Company | Contact | Last Order | Reliability |
-|---------|---------|------------|-------------|
-| Acme Industrial | procurement@acmeind.com | 2024-01-15 | 98% |
-| Global Parts Co. | sales@globalparts.com | 2024-02-02 | 95% |
-| Precision Supply | orders@precisionsupply.com | 2024-02-20 | 97% |
-
-**Recommendation**: Contact Acme Industrial first due to most recent order and highest reliability score.`;
-
+      const mockResponse = `## Analysis for "${message}"\n\nI have retrieved the following supplier data from our historical procurement database:\n\n| Company | Contact | Last Order | Reliability | Lead Time |\n|---------|---------|------------|-------------|-----------|\n| Precision Machining Ltd | sales@precisionmachining.com | 2024-03-10 | 98% | 5 Days |\n| Vertex Components | orders@vertex.com | 2024-02-15 | 94% | 3 Days |\n| Legacy Parts Co | procurement@legacyparts.co | 2023-11-20 | 91% | 12 Days |\n\n**Strategic Recommendation**: Vertex Components is the preferred choice for immediate needs due to their superior lead time, despite Precision Machining's slightly higher reliability score.`;
       if (onChunk) {
         const words = mockResponse.split(' ');
-        const simulateTyping = async (index: number) => {
-          if (index >= words.length) return;
-          onChunk(words[index] + ' ');
-          await new Promise(resolve => setTimeout(resolve, 50)); // Cloudflare Workers support this
-          await simulateTyping(index + 1);
-        };
-        await simulateTyping(0);
+        for (const word of words) {
+          onChunk(word + ' ');
+          await new Promise(resolve => setTimeout(resolve, 30));
+        }
       }
-
       return { content: mockResponse };
     }
-
     const messages = this.buildConversationMessages(message, conversationHistory);
     const toolDefinitions = await getToolDefinitions();
-    
     if (onChunk) {
-      // Use streaming with callback
       const stream = await this.client!.chat.completions.create({
         model: this.model,
         messages,
@@ -78,13 +55,9 @@ export class ChatHandler {
         tool_choice: 'auto',
         max_completion_tokens: 16000,
         stream: true,
-        // reasoning_effort: 'low'
       });
-
       return this.handleStreamResponse(stream, message, conversationHistory, onChunk);
     }
-
-    // Non-streaming response
     const completion = await this.client!.chat.completions.create({
       model: this.model,
       messages,
@@ -93,10 +66,8 @@ export class ChatHandler {
       max_tokens: 16000,
       stream: false
     });
-
     return this.handleNonStreamResponse(completion, message, conversationHistory);
   }
-
   private async handleStreamResponse(
     stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>,
     message: string,
@@ -105,135 +76,83 @@ export class ChatHandler {
   ) {
     let fullContent = '';
     const accumulatedToolCalls: ChatCompletionMessageFunctionToolCall[] = [];
-    
-    try {
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta;
-        
-        if (delta?.content) {
-          fullContent += delta.content;
-          onChunk(delta.content);
-        }
-        
-        // Accumulate tool calls from streaming chunks
-        if (delta?.tool_calls) {
-          for (let i = 0; i < delta.tool_calls.length; i++) {
-            const deltaToolCall = delta.tool_calls[i];
-            if (!accumulatedToolCalls[i]) {
-              accumulatedToolCalls[i] = {
-                id: deltaToolCall.id || `tool_${Date.now()}_${i}`,
-                type: 'function',
-                function: {
-                  name: deltaToolCall.function?.name || '',
-                  arguments: deltaToolCall.function?.arguments || ''
-                }
-              };
-            } else {
-              // Append to existing tool call
-              if (deltaToolCall.function?.name && !accumulatedToolCalls[i].function.name) {
-                accumulatedToolCalls[i].function.name = deltaToolCall.function.name;
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (delta?.content) {
+        fullContent += delta.content;
+        onChunk(delta.content);
+      }
+      if (delta?.tool_calls) {
+        for (let i = 0; i < delta.tool_calls.length; i++) {
+          const deltaToolCall = delta.tool_calls[i];
+          if (!accumulatedToolCalls[i]) {
+            accumulatedToolCalls[i] = {
+              id: deltaToolCall.id || `tool_${Date.now()}_${i}`,
+              type: 'function',
+              function: {
+                name: deltaToolCall.function?.name || '',
+                arguments: deltaToolCall.function?.arguments || ''
               }
-              if (deltaToolCall.function?.arguments) {
-                accumulatedToolCalls[i].function.arguments += deltaToolCall.function.arguments;
-              }
-            }
+            };
+          } else {
+            if (deltaToolCall.function?.name) accumulatedToolCalls[i].function.name += deltaToolCall.function.name;
+            if (deltaToolCall.function?.arguments) accumulatedToolCalls[i].function.arguments += deltaToolCall.function.arguments;
           }
         }
       }
-    } catch (error) {
-      console.error('Stream processing error:', error);
-      throw new Error('Stream processing failed');
     }
-    
     if (accumulatedToolCalls.length > 0) {
       const executedTools = await this.executeToolCalls(accumulatedToolCalls);
       const finalResponse = await this.generateToolResponse(message, conversationHistory, accumulatedToolCalls, executedTools);
       return { content: finalResponse, toolCalls: executedTools };
     }
-    
     return { content: fullContent };
   }
-
   private async handleNonStreamResponse(
     completion: OpenAI.Chat.Completions.ChatCompletion,
     message: string,
     conversationHistory: Message[]
   ) {
     const responseMessage = completion.choices[0]?.message;
-    
-    if (!responseMessage) {
-      return { content: 'I apologize, but I encountered an issue processing your request.' };
-    }
-
+    if (!responseMessage) return { content: 'Request failed.' };
     if (!responseMessage.tool_calls) {
-      return { 
-        content: responseMessage.content || 'I apologize, but I encountered an issue.' 
-      };
+      return { content: responseMessage.content || 'No response.' };
     }
-
     const toolCalls = await this.executeToolCalls(responseMessage.tool_calls as ChatCompletionMessageFunctionToolCall[]);
-    const finalResponse = await this.generateToolResponse(
-      message, 
-      conversationHistory, 
-      responseMessage.tool_calls, 
-      toolCalls
-    );
-
+    const finalResponse = await this.generateToolResponse(message, conversationHistory, responseMessage.tool_calls, toolCalls);
     return { content: finalResponse, toolCalls };
   }
-
-  /**
-   * Execute all tool calls from OpenAI response
-   */
   private async executeToolCalls(openAiToolCalls: ChatCompletionMessageFunctionToolCall[]): Promise<ToolCall[]> {
     return Promise.all(
       openAiToolCalls.map(async (tc) => {
         try {
-          const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+          const args = JSON.parse(tc.function.arguments || '{}');
           const result = await executeTool(tc.function.name, args);
-          return {
-            id: tc.id,
-            name: tc.function.name,
-            arguments: args,
-            result
-          };
+          return { id: tc.id, name: tc.function.name, arguments: args, result };
         } catch (error) {
-          console.error(`Tool execution failed for ${tc.function.name}:`, error);
           return {
             id: tc.id,
             name: tc.function.name,
             arguments: {},
-            result: { error: `Failed to execute ${tc.function.name}: ${error instanceof Error ? error.message : 'Unknown error'}` }
+            result: { error: `Procurement Database Access Error: ${error instanceof Error ? error.message : 'Unknown'}` }
           };
         }
       })
     );
   }
-
-  /**
-   * Generate final response after tool execution
-   */
   private async generateToolResponse(
     userMessage: string,
     history: Message[],
     openAiToolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[],
     toolResults: ToolCall[]
   ): Promise<string> {
-    if (this.isMock) {
-      return 'Supplier search completed successfully. Check the results above.';
-    }
-
     const followUpCompletion = await this.client!.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: 'You are a helpful AI assistant. Respond naturally to the tool results.' },
+        { role: 'system', content: SYSTEM_PROMPT },
         ...history.slice(-3).map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMessage },
-        {
-          role: 'assistant',
-          content: null,
-          tool_calls: openAiToolCalls
-        },
+        { role: 'assistant', content: null, tool_calls: openAiToolCalls },
         ...toolResults.map((result, index) => ({
           role: 'tool' as const,
           content: JSON.stringify(result.result),
@@ -242,36 +161,16 @@ export class ChatHandler {
       ],
       max_tokens: 16000
     });
-
-    return followUpCompletion.choices[0]?.message?.content || 'Tool results processed successfully.';
+    return followUpCompletion.choices[0]?.message?.content || 'Data processed.';
   }
-
-  /**
-   * Build conversation messages for OpenAI API
-   */
   private buildConversationMessages(userMessage: string, history: Message[]) {
     return [
-      {
-        role: 'system' as const,
-        content: `You are SourceAI, a Senior Procurement Specialist.
-        Your primary goal is to help users find supplier information for industrial parts and materials.
-        When a user asks about suppliers or sourcing a part, ALWAYS use the 'find_suppliers' tool.
-        Present supplier data in a professional Markdown table with columns: Company, Contact, Last Order, and Reliability.
-        Keep your tone professional, efficient, and data-driven.`
-      },
-      ...history.slice(-5).map(m => ({
-        role: m.role,
-        content: m.content 
-      })),
+      { role: 'system' as const, content: SYSTEM_PROMPT },
+      ...history.slice(-5).map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: userMessage }
     ];
   }
-
-  /**
-   * Update the model for this chat handler
-   */
   updateModel(newModel: string): void {
-    if (this.isMock) return;
     this.model = newModel;
   }
 }
