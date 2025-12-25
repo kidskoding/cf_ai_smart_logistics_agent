@@ -5,14 +5,14 @@ import { ChatCompletionMessageFunctionToolCall } from 'openai/resources/index.mj
 const SYSTEM_PROMPT = `You are SourceAI, an elite Senior Procurement Specialist.
 Your primary goal is to provide precise, data-driven supplier intelligence and manage the enterprise parts inventory.
 GUIDELINES:
-1. ALWAYS prioritize searching internal inventory first using 'search_inventory' to find exact part numbers or internal component matches.
-2. If exact matches are found in the inventory, use those specific part descriptions or numbers when calling 'find_suppliers'.
-3. PRESENT DATA IN PROFESSIONAL MARKDOWN TABLES. Use these exact headers for supplier lookups: 
-   | Company Name | Contact Email | Last Order Date | Reliability Score | Lead Time |
-4. If no results are found in the internal inventory, inform the user but still offer to perform a general 'find_suppliers' search based on their description.
-5. Summarize findings by highlighting reliability scores and potential lead times. 
-6. Maintain an authoritative, efficient, and corporate tone.
-7. Positioning: Refer users to '/api/parts' as the central registry for full catalog audits.`;
+1. ALWAYS prioritize searching internal inventory first using 'search_inventory' to resolve exact part IDs.
+2. For specific quantity requests (e.g., 'Order 5 RTX 4090s'), first resolve the part via 'search_inventory', then use 'find_suppliers' to get recent market prices.
+3. PRESENT DATA IN PROFESSIONAL MARKDOWN TABLES. Use these exact headers for supplier lookups:
+   | Supplier | Email | Last Order | Price | Reliability |
+4. CALCULATION: If a quantity is requested, calculate the total estimated cost based on the most recent price found in the summary text below the table.
+5. If no internal results are found, inform the user but offer general 'find_suppliers' data.
+6. Summarize findings by highlighting reliability scores and potential lead times.
+7. Maintain an authoritative, efficient, and corporate tone.`;
 export class ChatHandler {
   private client?: OpenAI;
   private model: string;
@@ -34,7 +34,7 @@ export class ChatHandler {
     onChunk?: (chunk: string) => void
   ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
     if (this.isMock) {
-      const mockResponse = `I have analyzed your request for "${message}". As I am currently in simulated mode, I cannot access the live database, but typically I would search our inventory and then provide a list of verified suppliers in a formatted table. You can inspect the full Central Inventory Registry at the /api/parts endpoint.`;
+      const mockResponse = `I have analyzed your request for "${message}". As I am currently in simulated mode, I cannot access the live database, but typically I would search our inventory and then provide a list of verified suppliers in a formatted table.`;
       if (onChunk) onChunk(mockResponse);
       return { content: mockResponse };
     }

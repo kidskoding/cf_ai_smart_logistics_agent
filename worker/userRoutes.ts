@@ -5,6 +5,7 @@ import { API_RESPONSES } from './config';
 import { Env, getAppController, registerSession, unregisterSession } from "./core-utils";
 async function ensureInventorySeeded(db: D1Database) {
   try {
+    // 1. Create Parts Table
     await db.prepare(`
         CREATE TABLE IF NOT EXISTS Parts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13,35 +14,54 @@ async function ensureInventorySeeded(db: D1Database) {
             category TEXT NOT NULL
         )
     `).run();
+    // 2. Create PurchaseOrders Table
+    await db.prepare(`
+        CREATE TABLE IF NOT EXISTS PurchaseOrders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            part_id INTEGER NOT NULL,
+            supplier_name TEXT NOT NULL,
+            supplier_email TEXT NOT NULL,
+            order_date TEXT NOT NULL,
+            unit_price REAL NOT NULL,
+            quantity INTEGER NOT NULL,
+            FOREIGN KEY (part_id) REFERENCES Parts(id)
+        )
+    `).run();
     const check = await db.prepare("SELECT COUNT(*) as count FROM Parts").first<{count: number}>();
     if (check && check.count === 0) {
         const parts = [
+            ['GPU-RTX-4090', 'NVIDIA GeForce RTX 4090 24GB Graphics Card', 'Graphics Cards'],
             ['RES-220K', '2.2k Ohm 1/4W Carbon Film Resistor', 'Passives'],
             ['CPU-i7-13700K', 'Intel Core i7-13700K Processor', 'Processors'],
             ['CAP-100UF', '100uF 25V Electrolytic Capacitor', 'Passives'],
             ['MCU-STM32F4', 'STM32F405 ARM Cortex-M4 Microcontroller', 'Microcontrollers'],
             ['IC-LM358', 'Dual Operational Amplifier IC', 'Analog'],
-            ['LED-RGB-5MM', '5mm RGB Common Cathode LED', 'Optoelectronics'],
-            ['MOS-IRFZ44N', 'N-Channel Power MOSFET 49A 55V', 'Discrete'],
-            ['REG-7805', '5V Positive Voltage Regulator', 'Power'],
-            ['DIO-1N4007', '1A 1000V General Purpose Rectifier', 'Discrete'],
-            ['ESP-WROOM-32', 'ESP32 WiFi + BT Module', 'Wireless'],
-            ['CON-USB-C', 'USB Type-C Female Connector SMT', 'Connectors'],
-            ['LCD-1602-I2C', '16x2 Character LCD with I2C Interface', 'Displays'],
-            ['RAM-DDR4-16G', '16GB DDR4 3200MHz Desktop Memory', 'Memory'],
             ['SSD-NVME-1TB', '1TB NVMe M.2 PCIe Gen4 SSD', 'Storage'],
+            ['RAM-DDR4-16G', '16GB DDR4 3200MHz Desktop Memory', 'Memory'],
             ['FAN-120MM-PWM', '120mm PWM Cooling Fan 12V', 'Thermal'],
-            ['SEN-BME280', 'Temperature/Humidity/Pressure Sensor', 'Sensors'],
-            ['REL-5V-1CH', '5V Single Channel Relay Module', 'Power'],
-            ['SW-SPDT-MINI', 'Miniature SPDT Toggle Switch', 'Electromechanical'],
-            ['CRY-16MHZ', '16MHz HC-49S Crystal Oscillator', 'Timing'],
-            ['POT-10K-LIN', '10k Ohm Linear Potentiometer', 'Passives']
+            ['SEN-BME280', 'Temperature/Humidity/Pressure Sensor', 'Sensors']
         ];
         const stmt = db.prepare("INSERT INTO Parts (part_number, part_description, category) VALUES (?, ?, ?)");
         await db.batch(parts.map(p => stmt.bind(p[0], p[1], p[2])));
+        // Seed Purchase Orders for RTX 4090 and others
+        const rtxId = 1; // First inserted
+        const orders = [
+            [rtxId, 'Silicon Valley Direct', 'sales@svdirect.components.com', '2024-03-15', 1599.99, 10],
+            [rtxId, 'NextGen Hardware', 'orders@nextgen.components.com', '2024-03-20', 1649.50, 5],
+            [rtxId, 'Apex Industrial', 'procure@apex.components.com', '2024-03-25', 1585.00, 20],
+            [rtxId, 'Silicon Valley Direct', 'sales@svdirect.components.com', '2024-04-01', 1610.00, 8],
+            [2, 'Global Dynamics', 'sales@global.components.com', '2024-02-10', 0.05, 1000],
+            [3, 'Legacy Parts', 'info@legacy.components.com', '2024-01-20', 420.00, 15],
+            [7, 'Vertex Components', 'sales@vertex.components.com', '2024-03-05', 95.00, 50],
+            [8, 'Global Dynamics', 'sales@global.components.com', '2024-03-12', 65.00, 100],
+            [rtxId, 'Vertex Components', 'sales@vertex.components.com', '2024-04-05', 1575.00, 12],
+            [1, 'Elite Graphics', 'contact@elite.components.com', '2024-04-10', 1699.00, 2]
+        ];
+        const orderStmt = db.prepare("INSERT INTO PurchaseOrders (part_id, supplier_name, supplier_email, order_date, unit_price, quantity) VALUES (?, ?, ?, ?, ?, ?)");
+        await db.batch(orders.map(o => orderStmt.bind(o[0], o[1], o[2], o[3], o[4], o[5])));
     }
   } catch (error) {
-    console.error("Database seeding failed, but worker continuing:", error);
+    console.error("Database seeding failed:", error);
   }
 }
 export function coreRoutes(app: Hono<{ Bindings: Env }>) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check, Hash } from 'lucide-react';
+import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check, Hash, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 interface ChatMessageProps {
   role: 'user' | 'assistant' | 'system';
@@ -70,7 +70,8 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                             const header = headers[cellIndex]?.toLowerCase() || '';
                             const isEmail = header.includes('contact') || cell.includes('@');
                             const isPartNumber = header.includes('part') || header.includes('id') || header.includes('number');
-                            const isCompany = header.includes('company') || header.includes('name');
+                            const isCompany = header.includes('supplier') || header.includes('company') || header.includes('name');
+                            const isPrice = header.includes('price') || header.includes('cost') || header.includes('amount');
                             return (
                               <td key={cellIndex} className={cn(
                                 "px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300",
@@ -88,10 +89,15 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                                     <span>{cell}</span>
                                     {copiedText === cell ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-slate-300 opacity-0 group-hover/part:opacity-100" />}
                                   </button>
+                                ) : isPrice ? (
+                                  <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white tabular-nums">
+                                    <DollarSign size={14} className="text-emerald-500" />
+                                    <span>{parseFloat(cell.replace(/[^0-9.]/g, '')).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  </div>
                                 ) : header.includes('order') || header.includes('date') ? (
                                   <div className="flex items-center gap-2">
                                     <Calendar size={14} className="text-slate-400" />
-                                    <span className="tabular-nums">{cell}</span>
+                                    <span className="tabular-nums text-xs">{cell}</span>
                                   </div>
                                 ) : header.includes('reliability') || header.includes('score') ? (
                                   <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full w-fit border border-emerald-100 dark:border-emerald-900/50">
