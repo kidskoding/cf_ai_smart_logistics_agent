@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Plus, Loader2, PackageSearch, AlertCircle, Sparkles } from 'lucide-react';
 import { chatService } from '@/lib/chat';
+import { useChatStore } from '@/lib/store';
 import type { Message } from '../../worker/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +11,24 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 export function HomePage() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const sessionId = useChatStore((s) => s.sessionId);
+  const setSessionId = useChatStore((s) => s.setSessionId);
+  const inputValue = useChatStore((s) => s.inputValue);
+  const setInputValue = useChatStore((s) => s.setInputValue);
+  const loadMessages = async () => {
+    const res = await chatService.getMessages();
+    if (res.success && res.data) {
+      setMessages(res.data.messages);
+    } else {
+      setMessages([]);
+    }
+  };
   useEffect(() => {
     loadMessages();
-  }, []);
+  }, [sessionId]);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -25,17 +37,11 @@ export function HomePage() {
       });
     }
   }, [messages, isLoading]);
-  const loadMessages = async () => {
-    const res = await chatService.getMessages();
-    if (res.success && res.data) {
-      setMessages(res.data.messages);
-    }
-  };
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || isLoading) return;
-    const userMessage = input.trim();
-    setInput('');
+    if (!inputValue.trim() || isLoading) return;
+    const userMessage = inputValue.trim();
+    setInputValue('');
     setIsLoading(true);
     const tempUserMsg: Message = {
       id: crypto.randomUUID(),
@@ -60,16 +66,11 @@ export function HomePage() {
     }
   };
   const startNewSession = () => {
-    chatService.newSession();
+    const newId = crypto.randomUUID();
+    setSessionId(newId);
     setMessages([]);
-    setInput('');
+    setInputValue('');
     toast.info("Started new procurement inquiry");
-  };
-  const handlePartSelect = (description: string) => {
-    const query = `Find suppliers for ${description}`;
-    setInput(query);
-    inputRef.current?.focus();
-    toast.success("Query updated from catalog");
   };
   return (
     <AppLayout className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -86,20 +87,20 @@ export function HomePage() {
             </div>
           </div>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={startNewSession} 
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={startNewSession}
           className="gap-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95 shadow-sm"
         >
           <Plus size={16} /> <span className="hidden sm:inline font-semibold">New Search</span>
         </Button>
       </header>
       <main className="flex-1 overflow-hidden flex flex-col relative">
-        <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col overflow-hidden px-4 md:px-8">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col overflow-hidden">
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto py-8 md:py-12 space-y-8 no-scrollbar"
+            className="flex-1 overflow-y-auto py-8 md:py-10 lg:py-12 space-y-8 no-scrollbar"
           >
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-700">
@@ -119,7 +120,7 @@ export function HomePage() {
                   {["High-speed ball bearings", "12V DC stepper motor", "5mm aluminum sheets", "Stainless steel fasteners"].map((text) => (
                     <button
                       key={text}
-                      onClick={() => setInput(text)}
+                      onClick={() => setInputValue(`Find suppliers for ${text}`)}
                       className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg transition-all text-sm font-semibold group"
                     >
                       <span className="text-sky-600 opacity-0 group-hover:opacity-100 transition-opacity mr-1">→</span>
@@ -161,14 +162,14 @@ export function HomePage() {
                 <div className="relative">
                   <Input
                     ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Describe the component or material to source..."
                     className="pr-16 py-8 bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xl focus:ring-sky-500/50 transition-all text-base font-medium placeholder:text-slate-400"
                   />
                   <Button
                     type="submit"
-                    disabled={isLoading || !input.trim()}
+                    disabled={isLoading || !inputValue.trim()}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 h-12 w-12 rounded-xl bg-sky-600 hover:bg-sky-700 text-white shadow-xl transition-all active:scale-90 disabled:bg-slate-200 dark:disabled:bg-slate-800"
                   >
                     <Send size={22} />
@@ -179,6 +180,9 @@ export function HomePage() {
                 <AlertCircle size={14} className="text-amber-500" />
                 <span className="uppercase tracking-widest">Enterprise results verified by procurement node</span>
               </div>
+            </div>
+            <div className="mt-4 text-[10px] text-center text-muted-foreground max-w-md mx-auto">
+              Note: There is a limit on the number of requests that can be made to the AI servers across all user apps in a given time period.
             </div>
           </div>
         </div>

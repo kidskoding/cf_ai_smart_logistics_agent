@@ -1,4 +1,4 @@
-import type { Message, ChatState, ToolCall, WeatherResult, MCPResult, ErrorResult, SessionInfo } from '../../worker/types';
+import type { ChatState, SessionInfo } from '../../worker/types';
 import { toast } from 'sonner';
 export interface ChatResponse {
   success: boolean;
@@ -74,11 +74,6 @@ class ChatService {
   getSessionId(): string {
     return this.sessionId;
   }
-  newSession(): void {
-    this.sessionId = crypto.randomUUID();
-    this.baseUrl = `/api/chat/${this.sessionId}`;
-    localStorage.setItem('source_ai_last_session', this.sessionId);
-  }
   switchSession(sessionId: string): void {
     if (!sessionId) return;
     this.sessionId = sessionId;
@@ -96,9 +91,6 @@ class ChatService {
   async deleteSession(sessionId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
-      if (sessionId === this.sessionId) {
-        this.newSession();
-      }
       return await response.json();
     } catch (error) {
       return { success: false, error: (error as Error).message };

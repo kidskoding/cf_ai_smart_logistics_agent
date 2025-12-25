@@ -1,15 +1,22 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { User, ShieldCheck, Mail, Calendar, Star } from 'lucide-react';
+import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 interface ChatMessageProps {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 export function ChatMessage({ role, content }: ChatMessageProps) {
+  const [copiedText, setCopiedText] = React.useState<string | null>(null);
   const isAssistant = role === 'assistant';
+  const handleCopyEmail = (email: string) => {
+    navigator.clipboard.writeText(email);
+    setCopiedText(email);
+    toast.success("Email copied to clipboard");
+    setTimeout(() => setCopiedText(null), 2000);
+  };
   const renderContent = (text: string) => {
     if (!text) return null;
-    // Split content into blocks by identifying table segments
     const lines = text.split('\n');
     const blocks: Array<{ type: 'text' | 'table'; content: string[] }> = [];
     let currentBlock: { type: 'text' | 'table'; content: string[] } | null = null;
@@ -40,7 +47,6 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
               .split('|')
               .filter(Boolean)
               .map((s) => s.trim());
-            // Skip the separator line (index 1) and map the rest to rows
             const rows = tableLines.slice(2).map((line) =>
               line.split('|').filter(Boolean).map((s) => s.trim())
             );
@@ -51,7 +57,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                     <thead className="bg-slate-50 dark:bg-slate-900/50">
                       <tr>
                         {headers.map((h, i) => (
-                          <th key={i} className="px-5 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          <th key={i} className="px-5 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
                             {h}
                           </th>
                         ))}
@@ -62,13 +68,22 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                         <tr key={rowIndex} className="hover:bg-sky-50/30 dark:hover:bg-sky-900/10 transition-colors group">
                           {row.map((cell, cellIndex) => {
                             const header = headers[cellIndex]?.toLowerCase() || '';
+                            const isEmail = header.includes('contact') || cell.includes('@');
                             return (
                               <td key={cellIndex} className="px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                {header.includes('contact') || cell.includes('@') ? (
-                                  <div className="flex items-center gap-2">
+                                {isEmail ? (
+                                  <button 
+                                    onClick={() => handleCopyEmail(cell)}
+                                    className="flex items-center gap-2 group/btn"
+                                  >
                                     <Mail size={14} className="text-slate-400 group-hover:text-sky-500 transition-colors" />
-                                    <span className="text-sky-600 dark:text-sky-400 underline decoration-sky-600/30 underline-offset-4 cursor-pointer truncate max-w-[150px]">{cell}</span>
-                                  </div>
+                                    <span className="text-sky-600 dark:text-sky-400 underline decoration-sky-600/30 underline-offset-4 truncate max-w-[150px]">{cell}</span>
+                                    {copiedText === cell ? (
+                                      <Check size={12} className="text-emerald-500" />
+                                    ) : (
+                                      <Copy size={12} className="text-slate-300 opacity-0 group-hover/btn:opacity-100 transition-all" />
+                                    )}
+                                  </button>
                                 ) : header.includes('order') || header.includes('date') ? (
                                   <div className="flex items-center gap-2">
                                     <Calendar size={14} className="text-slate-400" />

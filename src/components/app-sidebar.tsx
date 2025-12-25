@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { History, Plus, MessageSquare, Trash2, ShieldCheck, Database } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Plus, MessageSquare, Trash2, ShieldCheck, Database } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,13 +13,16 @@ import {
   SidebarMenuAction,
 } from "@/components/ui/sidebar";
 import { chatService } from "@/lib/chat";
+import { useChatStore } from "@/lib/store";
 import type { SessionInfo } from "../../worker/types";
 import { cn } from "@/lib/utils";
 import { PartsCatalog } from "./PartsCatalog";
 import { toast } from "sonner";
-
 export function AppSidebar(): JSX.Element {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const currentSessionId = useChatStore((s) => s.sessionId);
+  const setSessionId = useChatStore((s) => s.setSessionId);
+  const setInputValue = useChatStore((s) => s.setInputValue);
   const loadSessions = async () => {
     const res = await chatService.listSessions();
     if (res.success && res.data) {
@@ -32,26 +35,21 @@ export function AppSidebar(): JSX.Element {
     return () => clearInterval(interval);
   }, []);
   const handleNewSearch = () => {
-    chatService.newSession();
-    window.location.reload();
+    const newId = crypto.randomUUID();
+    setSessionId(newId);
+    setInputValue('');
   };
   const handleSelectSession = (id: string) => {
-    chatService.switchSession(id);
-    window.location.reload();
+    setSessionId(id);
   };
   const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     await chatService.deleteSession(id);
+    if (id === currentSessionId) {
+      handleNewSearch();
+    }
     loadSessions();
   };
-
-  const handleSelectCatalogPart = useCallback((desc: string) => {
-    // This triggers a global event or common communication channel if needed, 
-    // but for this implementation, we assume the user clicks the row 
-    // and the HomePage handles the input state via its own subscription or context if shared.
-    // Here we use a window event as a simple bridge if HomePage isn't a direct child.
-  }, []);
-
   return (
     <Sidebar className="border-r border-slate-200 dark:border-slate-800">
       <SidebarHeader className="p-4">
@@ -63,7 +61,7 @@ export function AppSidebar(): JSX.Element {
         </div>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               onClick={handleNewSearch}
               className="w-full bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2 py-5"
             >
@@ -85,20 +83,20 @@ export function AppSidebar(): JSX.Element {
             ) : (
               sessions.map((session) => (
                 <SidebarMenuItem key={session.id}>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     onClick={() => handleSelectSession(session.id)}
-                    isActive={chatService.getSessionId() === session.id}
+                    isActive={currentSessionId === session.id}
                     className={cn(
                       "group transition-colors",
-                      chatService.getSessionId() === session.id 
-                        ? "bg-slate-100 dark:bg-slate-800" 
+                      currentSessionId === session.id
+                        ? "bg-slate-100 dark:bg-slate-800"
                         : "hover:bg-slate-50 dark:hover:bg-slate-900"
                     )}
                   >
                     <MessageSquare className="size-4 text-slate-400" />
                     <span className="truncate flex-1 text-sm">{session.title}</span>
                   </SidebarMenuButton>
-                  <SidebarMenuAction 
+                  <SidebarMenuAction
                     onClick={(e) => handleDeleteSession(e, session.id)}
                     className="opacity-0 group-hover:opacity-100"
                   >
@@ -109,25 +107,17 @@ export function AppSidebar(): JSX.Element {
             )}
           </SidebarMenu>
         </SidebarGroup>
-
         <SidebarGroup className="mt-4 flex-1 flex flex-col min-h-0">
           <SidebarGroupLabel className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
             <Database size={12} className="text-sky-500" />
             Component Catalog
           </SidebarGroupLabel>
           <div className="px-4 mt-2 flex-1 overflow-hidden">
-            <PartsCatalog 
+            <PartsCatalog
               onSelectPart={(desc) => {
-                // We find the input in the document as a fallback if no shared state
-                const input = document.querySelector('input[placeholder*="Describe"]') as HTMLInputElement;
-                if (input) {
-                  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-                  nativeInputValueSetter?.call(input, `Find suppliers for ${desc}`);
-                  input.dispatchEvent(new Event('input', { bubbles: true }));
-                  input.focus();
-                  toast.success("Catalog item selected");
-                }
-              }} 
+                setInputValue(`Find suppliers for ${desc}`);
+                toast.success("Catalog item selected");
+              }}
             />
           </div>
         </SidebarGroup>
