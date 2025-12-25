@@ -1,3 +1,16 @@
-
 # Bootstrap marker
 .bootstrap-complete
+
+# Cloudflare
+.wrangler/
+
+# Node
+node_modules/
+package-lock.json
+dist/
+
+# Bun
+bun.lock
+
+# MacOS
+.DS_Store
