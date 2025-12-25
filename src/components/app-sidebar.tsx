@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { History, Plus, MessageSquare, Trash2, ShieldCheck } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { History, Plus, MessageSquare, Trash2, ShieldCheck, Database } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,9 @@ import {
 import { chatService } from "@/lib/chat";
 import type { SessionInfo } from "../../worker/types";
 import { cn } from "@/lib/utils";
+import { PartsCatalog } from "./PartsCatalog";
+import { toast } from "sonner";
+
 export function AppSidebar(): JSX.Element {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const loadSessions = async () => {
@@ -41,6 +44,14 @@ export function AppSidebar(): JSX.Element {
     await chatService.deleteSession(id);
     loadSessions();
   };
+
+  const handleSelectCatalogPart = useCallback((desc: string) => {
+    // This triggers a global event or common communication channel if needed, 
+    // but for this implementation, we assume the user clicks the row 
+    // and the HomePage handles the input state via its own subscription or context if shared.
+    // Here we use a window event as a simple bridge if HomePage isn't a direct child.
+  }, []);
+
   return (
     <Sidebar className="border-r border-slate-200 dark:border-slate-800">
       <SidebarHeader className="p-4">
@@ -97,6 +108,28 @@ export function AppSidebar(): JSX.Element {
               ))
             )}
           </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup className="mt-4 flex-1 flex flex-col min-h-0">
+          <SidebarGroupLabel className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+            <Database size={12} className="text-sky-500" />
+            Component Catalog
+          </SidebarGroupLabel>
+          <div className="px-4 mt-2 flex-1 overflow-hidden">
+            <PartsCatalog 
+              onSelectPart={(desc) => {
+                // We find the input in the document as a fallback if no shared state
+                const input = document.querySelector('input[placeholder*="Describe"]') as HTMLInputElement;
+                if (input) {
+                  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+                  nativeInputValueSetter?.call(input, `Find suppliers for ${desc}`);
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                  input.focus();
+                  toast.success("Catalog item selected");
+                }
+              }} 
+            />
+          </div>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-slate-200 dark:border-slate-800">

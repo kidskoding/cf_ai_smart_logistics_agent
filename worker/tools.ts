@@ -54,17 +54,33 @@ export async function getToolDefinitions() {
  * Uses part description characteristics to seed results
  */
 function generateMockSuppliers(part: string) {
-  const cleanPart = part.toLowerCase().trim();
-  const seed = Array.from(cleanPart).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const companies = [
-    "Global Dynamics Corp", "Precision Machining Ltd", "Apex Industrial Solutions", 
+  const cleanPart = part.toUpperCase().trim();
+  
+  // Special handling for catalog categories to make it feel "authentic"
+  let domain = 'components';
+  let companyPool = [
+    "Global Dynamics Corp", "Precision Machining Ltd", "Apex Industrial Solutions",
     "Vertex Components", "Legacy Parts Co", "Quantum Logistics", "Titan Sourcing",
     "AeroTech Manufacturing", "Standard Supply Group", "Infinite Parts Inc"
   ];
+
+  if (cleanPart.includes('CPU') || cleanPart.includes('GPU') || cleanPart.includes('IC-')) {
+    domain = 'semiconductors';
+    companyPool = ["Silicon Labs", "MicroChip Systems", "Nordic Electro", "Apex Chips", "Velocity Semi", "Quantum Circuits"];
+  } else if (cleanPart.includes('RES-') || cleanPart.includes('CAP-') || cleanPart.includes('IND-')) {
+    domain = 'passives';
+    companyPool = ["TDK Industrial", "Murata Sourcing", "Vishay Logistics", "Panasonic Pro", "Bourns Supply"];
+  } else if (cleanPart.includes('CON-') || cleanPart.includes('TERM-')) {
+    domain = 'interconnect';
+    companyPool = ["Amphenol Direct", "Molex Sourcing", "TE Connectivity", "Hirose Solutions"];
+  }
+
+  const seed = Array.from(cleanPart).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  
   const results = [];
   for (let i = 0; i < 3; i++) {
     // Use varied indexes for deterministic but unique feeling results
-    const companyIdx = (seed + (i * 7)) % companies.length;
+    const companyIdx = (seed + (i * 7)) % companyPool.length;
     const daysAgo = (seed % 90) + (i * 15);
     const date = new Date(Date.now() - (daysAgo * 86400000));
     // Reliability score between 88% and 99%
@@ -72,8 +88,8 @@ function generateMockSuppliers(part: string) {
     // Lead time between 2 and 21 days
     const leadTime = 2 + ((seed * (i + 1)) % 20);
     results.push({
-      company_name: companies[companyIdx],
-      contact_email: `procurement@${companies[companyIdx].toLowerCase().replace(/\s+/g, '')}.com`,
+      company_name: companyPool[companyIdx],
+      contact_email: `sales@${companyPool[companyIdx].toLowerCase().replace(/\s+/g, '')}.${domain === 'semiconductors' ? 'tech' : 'com'}`,
       last_order_date: date.toISOString().split('T')[0],
       reliability_score: `${reliability}%`,
       sourcing_lead_time: `${leadTime} Days`

@@ -9,6 +9,7 @@ import { ChatMessage } from '@/components/ChatMessage';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 export function HomePage() {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +64,12 @@ export function HomePage() {
     setMessages([]);
     setInput('');
     toast.info("Started new procurement inquiry");
+  };
+  const handlePartSelect = (description: string) => {
+    const query = `Find suppliers for ${description}`;
+    setInput(query);
+    inputRef.current?.focus();
+    toast.success("Query updated from catalog");
   };
   return (
     <AppLayout className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -153,6 +160,7 @@ export function HomePage() {
                 <div className="absolute -inset-1.5 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-[1.4rem] blur opacity-15 group-focus-within:opacity-30 transition duration-1000 animate-gradient-x" />
                 <div className="relative">
                   <Input
+                    ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Describe the component or material to source..."
