@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -7,7 +7,7 @@ interface ChatMessageProps {
   content: string;
 }
 export function ChatMessage({ role, content }: ChatMessageProps) {
-  const [copiedText, setCopiedText] = React.useState<string | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   const isAssistant = role === 'assistant';
   const handleCopyEmail = (email: string) => {
     navigator.clipboard.writeText(email);

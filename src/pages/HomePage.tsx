@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, Plus, Loader2, PackageSearch, AlertCircle, Sparkles } from 'lucide-react';
 import { chatService } from '@/lib/chat';
 import { useChatStore } from '@/lib/store';

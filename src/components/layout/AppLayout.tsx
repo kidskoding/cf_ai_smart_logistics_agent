@@ -1,12 +1,12 @@
 /*
 Wraps children in a sidebar layout. Don't use this if you don't need a sidebar
 */
-import React from "react";
+import type { ReactNode } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
 type AppLayoutProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   container?: boolean;
   className?: string;
   contentClassName?: string;

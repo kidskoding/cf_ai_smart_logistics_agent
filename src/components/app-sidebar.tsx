@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, MessageSquare, Trash2, ShieldCheck, Database } from "lucide-react";
 import {
   Sidebar,
