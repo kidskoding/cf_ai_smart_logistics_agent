@@ -32,12 +32,17 @@ class ChatService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, model, stream: !!onChunk }),
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
 
       if (onChunk && response.body) {
+        if (!response.ok) {
+          try {
+            const errData = await response.json();
+            throw new Error(errData.error || `HTTP ${response.status}`);
+          } catch (e) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        }
+
         // Handle streaming response
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -60,27 +65,22 @@ class ChatService {
 
         return { success: true };
       }
-      
-      // Non-streaming response
+
+      // Non-streaming response - always parse JSON
       return await response.json();
     } catch (error) {
       console.error('Failed to send message:', error);
-      return { success: false, error: 'Failed to send message' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
   async getMessages(): Promise<ChatResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/messages`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
       return await response.json();
     } catch (error) {
       console.error('Failed to get messages:', error);
-      return { success: false, error: 'Failed to load messages' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -89,15 +89,10 @@ class ChatService {
       const response = await fetch(`${this.baseUrl}/clear`, {
         method: 'DELETE'
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
       return await response.json();
     } catch (error) {
       console.error('Failed to clear messages:', error);
-      return { success: false, error: 'Failed to clear messages' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -125,7 +120,7 @@ class ChatService {
       });
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to create session' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -134,7 +129,7 @@ class ChatService {
       const response = await fetch('/api/sessions');
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to list sessions' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -143,7 +138,7 @@ class ChatService {
       const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to delete session' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -156,7 +151,7 @@ class ChatService {
       });
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to update session title' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -165,7 +160,7 @@ class ChatService {
       const response = await fetch('/api/sessions', { method: 'DELETE' });
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to clear all sessions' };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -176,15 +171,10 @@ class ChatService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model })
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
       return await response.json();
     } catch (error) {
       console.error('Failed to update model:', error);
-      return { success: false, error: 'Failed to update model' };
+      return { success: false, error: (error as Error).message };
     }
   }
 }

@@ -24,6 +24,8 @@ export function HomePage() {
     const res = await chatService.getMessages();
     if (res.success && res.data) {
       setMessages(res.data.messages);
+    } else if (!res.success) {
+      console.warn('Failed to load messages:', res.error);
     }
   };
   const handleSend = async (e?: React.FormEvent) => {
@@ -45,10 +47,12 @@ export function HomePage() {
       if (response.success) {
         await loadMessages();
       } else {
-        toast.error("Failed to fetch procurement data");
+        toast.error(response.error || "Failed to fetch procurement data");
+        setMessages(prev => prev.slice(0, -1));
       }
     } catch (err) {
       toast.error("An error occurred");
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
