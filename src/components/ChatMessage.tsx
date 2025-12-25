@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
