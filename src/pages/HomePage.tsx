@@ -106,25 +106,30 @@ export function HomePage() {
               <div className="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-700">
                 <div className="relative">
                   <div className="absolute inset-0 bg-sky-500/20 blur-[80px] rounded-full" />
-                  <div className="relative w-24 h-24 bg-white dark:bg-slate-900 shadow-2xl rounded-[2rem] flex items-center justify-center text-sky-600 border border-slate-100 dark:border-slate-800 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                  <div className="relative w-24 h-24 bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] flex items-center justify-center text-sky-600 border border-slate-100 dark:border-slate-800 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
                     <Sparkles size={48} className="text-sky-500 animate-pulse" />
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Procurement Intelligence</h2>
-                  <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed text-lg">
+                  <h2 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Procurement Intelligence</h2>
+                  <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed text-lg font-medium">
                     Instantly retrieve supplier history, reliability scores, and contact details for industrial components.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
-                  {["High-speed ball bearings", "12V DC stepper motor", "5mm aluminum sheets", "Stainless steel fasteners"].map((text) => (
+                  {[
+                    "Find suppliers for high-speed ball bearings",
+                    "Sourcing options for 12V DC stepper motors",
+                    "Supplier history for 5mm aluminum sheets",
+                    "Top 3 vendors for stainless steel fasteners"
+                  ].map((text) => (
                     <button
                       key={text}
-                      onClick={() => setInputValue(`Find suppliers for ${text}`)}
-                      className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg transition-all text-sm font-semibold group"
+                      onClick={() => setInputValue(text)}
+                      className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg transition-all text-sm font-semibold group flex items-start gap-3"
                     >
-                      <span className="text-sky-600 opacity-0 group-hover:opacity-100 transition-opacity mr-1">→</span>
-                      "{text}"
+                      <span className="text-sky-600 mt-0.5 group-hover:translate-x-1 transition-transform">→</span>
+                      <span className="flex-1">"{text}"</span>
                     </button>
                   ))}
                 </div>
@@ -149,7 +154,7 @@ export function HomePage() {
                       <div className="absolute inset-0 bg-sky-500/20 blur-md rounded-full" />
                       <Loader2 size={20} className="animate-spin relative z-10" />
                     </div>
-                    <span className="text-sm font-bold tracking-tight animate-pulse uppercase">Searching Procurement database...</span>
+                    <span className="text-sm font-bold tracking-tight animate-pulse uppercase">Querying supplier nodes...</span>
                   </div>
                 )}
               </div>
@@ -158,13 +163,13 @@ export function HomePage() {
           <div className="shrink-0 pb-8 pt-4">
             <div className="max-w-4xl mx-auto">
               <form onSubmit={handleSend} className="relative group">
-                <div className="absolute -inset-1.5 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-[1.4rem] blur opacity-15 group-focus-within:opacity-30 transition duration-1000 animate-gradient-x" />
+                <div className="absolute -inset-1.5 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-[1.4rem] blur opacity-15 group-focus-within:opacity-30 transition duration-1000" />
                 <div className="relative">
                   <Input
                     ref={inputRef}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Describe the component or material to source..."
+                    placeholder="Describe the component to find verified suppliers..."
                     className="pr-16 py-8 bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xl focus:ring-sky-500/50 transition-all text-base font-medium placeholder:text-slate-400"
                   />
                   <Button
@@ -178,7 +183,7 @@ export function HomePage() {
               </form>
               <div className="mt-5 flex items-center justify-center gap-3 text-[11px] font-bold text-muted-foreground bg-white/50 dark:bg-slate-900/50 py-2.5 px-6 rounded-full w-fit mx-auto border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-sm shadow-sm">
                 <AlertCircle size={14} className="text-amber-500" />
-                <span className="uppercase tracking-widest">Enterprise results verified by procurement node</span>
+                <span className="uppercase tracking-widest">Enterprise results verified by internal procurement network</span>
               </div>
             </div>
             <div className="mt-4 text-[10px] text-center text-muted-foreground max-w-md mx-auto">

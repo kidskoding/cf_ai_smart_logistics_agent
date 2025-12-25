@@ -12,17 +12,11 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
-import { PartsPage } from '@/pages/PartsPage'
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/parts",
-    element: <PartsPage />,
     errorElement: <RouteErrorBoundary />,
   },
 ]);
