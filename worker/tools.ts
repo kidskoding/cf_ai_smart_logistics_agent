@@ -10,7 +10,7 @@ const customTools = [
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Search term for part number, description, or category' }
+          query: { type: 'string', description: 'Search term for part number (e.g. RTX-4090), description, or category' }
         },
         required: ['query']
       }
@@ -49,20 +49,23 @@ export async function getToolDefinitions() {
 }
 function generateMockSuppliers(part: string) {
   const cleanPart = part.toUpperCase().trim();
-  let domain = 'components';
-  let companyPool = ["Global Dynamics Corp", "Precision Machining Ltd", "Apex Industrial Solutions", "Vertex Components", "Legacy Parts Co"];
+  const isHighEnd = cleanPart.includes('RTX') || cleanPart.includes('4090') || cleanPart.includes('GPU');
+  let companyPool = ["Global Dynamics Corp", "Precision Machining Ltd", "Apex Industrial Solutions", "Vertex Components", "Legacy Parts Co", "Elite Graphics Supply"];
   const seed = Array.from(cleanPart).reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const results = [];
   for (let i = 0; i < 3; i++) {
     const companyIdx = (seed + (i * 7)) % companyPool.length;
     const daysAgo = (seed % 90) + (i * 15);
     const date = new Date(Date.now() - (daysAgo * 86400000));
+    // Base prices: High-end components get realistic premiums
+    const basePrice = isHighEnd ? 1450.00 : 10.50;
+    const variance = (seed % (isHighEnd ? 300 : 50)) + i;
     results.push({
       company_name: companyPool[companyIdx],
-      contact_email: `sales@${companyPool[companyIdx].toLowerCase().replace(/\s+/g, '')}.${domain}.com`,
+      contact_email: `sales@${companyPool[companyIdx].toLowerCase().replace(/\s+/g, '')}.components.com`,
       last_order_date: date.toISOString().split('T')[0],
       reliability_score: `${88 + ((seed + i) % 12)}%`,
-      unit_price: (seed % 500) + 10.50 + i
+      unit_price: basePrice + variance
     });
   }
   return results;
@@ -73,9 +76,15 @@ export async function executeTool(name: string, args: Record<string, unknown>, e
       case 'search_inventory': {
         const query = (args.query as string) || "";
         if (!env?.DB) return { error: "Inventory database unavailable" };
-        const results = await env.DB.prepare(
-            "SELECT * FROM Parts WHERE part_number LIKE ? OR part_description LIKE ? OR category LIKE ? LIMIT 10"
-        ).bind(`%${query}%`, `%${query}%`, `%${query}%`).all();
+        // Match part_number EXACTLY or via LIKE, plus description
+        const results = await env.DB.prepare(`
+            SELECT * FROM Parts 
+            WHERE part_number = ? 
+            OR part_number LIKE ? 
+            OR part_description LIKE ? 
+            OR category LIKE ? 
+            LIMIT 10
+        `).bind(query, `%${query}%`, `%${query}%`, `%${query}%`).all();
         return {
             status: "success",
             count: results.results.length,
@@ -85,23 +94,25 @@ export async function executeTool(name: string, args: Record<string, unknown>, e
       case 'find_suppliers': {
         const partDesc = (args.part_description as string) || "";
         if (!env?.DB) return { status: "success", suppliers: generateMockSuppliers(partDesc) };
-        // 1. Resolve Part IDs matching the description
-        const partsRes = await env.DB.prepare(
-          "SELECT id FROM Parts WHERE part_number LIKE ? OR part_description LIKE ? LIMIT 5"
-        ).bind(`%${partDesc}%`, `%${partDesc}%`).all();
+        // 1. Resolve Part IDs using robust keyword matching
+        const partsRes = await env.DB.prepare(`
+          SELECT id FROM Parts 
+          WHERE part_number = ? 
+          OR part_number LIKE ? 
+          OR part_description LIKE ? 
+          LIMIT 5
+        `).bind(partDesc, `%${partDesc}%`, `%${partDesc}%`).all();
         if (partsRes.results.length > 0) {
           const partIds = partsRes.results.map((p: any) => p.id);
           const placeholders = partIds.map(() => "?").join(",");
-          // 2. Query PurchaseOrders for top 3 unique suppliers with latest info
           const sql = `
-            SELECT 
-              PO.supplier_name as company_name, 
-              PO.supplier_email as contact_email, 
-              MAX(PO.order_date) as last_order_date, 
+            SELECT
+              PO.supplier_name as company_name,
+              PO.supplier_email as contact_email,
+              MAX(PO.order_date) as last_order_date,
               PO.unit_price,
               '94%' as reliability_score
             FROM PurchaseOrders PO
-            JOIN Parts P ON PO.part_id = P.id
             WHERE PO.part_id IN (${placeholders})
             GROUP BY PO.supplier_name
             ORDER BY last_order_date DESC
@@ -116,7 +127,6 @@ export async function executeTool(name: string, args: Record<string, unknown>, e
             };
           }
         }
-        // Fallback to mock data if no database records found
         return {
           status: "success",
           source: "market_estimate",

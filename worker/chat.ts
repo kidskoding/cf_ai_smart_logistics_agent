@@ -2,16 +2,15 @@ import OpenAI from 'openai';
 import type { Message, ToolCall } from './types';
 import { getToolDefinitions, executeTool } from './tools';
 import { ChatCompletionMessageFunctionToolCall } from 'openai/resources/index.mjs';
-const SYSTEM_PROMPT = `You are SourceAI, an elite Senior Procurement Specialist.
-Your primary goal is to provide precise, data-driven supplier intelligence and manage the enterprise parts inventory.
-GUIDELINES:
-1. ALWAYS prioritize searching internal inventory first using 'search_inventory' to resolve exact part IDs.
-2. For specific quantity requests (e.g., 'Order 5 RTX 4090s'), first resolve the part via 'search_inventory', then use 'find_suppliers' to get recent market prices.
-3. PRESENT DATA IN PROFESSIONAL MARKDOWN TABLES. Use these exact headers for supplier lookups:
+const SYSTEM_PROMPT = `You are SourceAI, an elite Senior Procurement Specialist. Your goal is to provide precise supplier intelligence.
+MANDATORY PROCUREMENT PROTOCOL:
+1. ALWAYS use 'search_inventory' first if the user mentions parts (RTX, GPU, CPU, etc.) or specific quantities to resolve exact part IDs.
+2. If tool results are provided, you MUST transform them into a professional Markdown Table.
+3. TABLE SCHEMA (Strict):
    | Supplier | Email | Last Order | Price | Reliability |
-4. CALCULATION: If a quantity is requested, calculate the total estimated cost based on the most recent price found in the summary text below the table.
-5. If no internal results are found, inform the user but offer general 'find_suppliers' data.
-6. Summarize findings by highlighting reliability scores and potential lead times.
+4. CALCULATION: If a quantity is requested (e.g. "Order 5"), multiply the quantity by the unit price and display the "Total Estimated Procurement Cost" below the table.
+5. If no internal database results are found, explicitly state "Market Estimate provided via External Network" and use the 'find_suppliers' fallback data.
+6. Never return empty strings or "Data processed successfully". Always provide the data table.
 7. Maintain an authoritative, efficient, and corporate tone.`;
 export class ChatHandler {
   private client?: OpenAI;
@@ -34,7 +33,7 @@ export class ChatHandler {
     onChunk?: (chunk: string) => void
   ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
     if (this.isMock) {
-      const mockResponse = `I have analyzed your request for "${message}". As I am currently in simulated mode, I cannot access the live database, but typically I would search our inventory and then provide a list of verified suppliers in a formatted table.`;
+      const mockResponse = `Procurement Analysis: Typically I would query the central database for "${message}" and return a supplier comparison table. As I am in simulated mode, please refer to the integration specifications.`;
       if (onChunk) onChunk(mockResponse);
       return { content: mockResponse };
     }
@@ -74,8 +73,8 @@ export class ChatHandler {
         onChunk(delta.content);
       }
       if (delta?.tool_calls) {
-        for (let i = 0; i < delta.tool_calls.length; i++) {
-          const dtc = delta.tool_calls[i];
+        for (const dtc of delta.tool_calls) {
+          const i = dtc.index;
           if (!accumulatedToolCalls[i]) {
             accumulatedToolCalls[i] = {
               id: dtc.id || `tool_${i}`,
@@ -98,7 +97,7 @@ export class ChatHandler {
   }
   private async handleNonStreamResponse(completion: OpenAI.Chat.Completions.ChatCompletion, message: string, history: Message[]) {
     const resMsg = completion.choices[0]?.message;
-    if (!resMsg || !resMsg.tool_calls) return { content: resMsg?.content || 'Error' };
+    if (!resMsg || !resMsg.tool_calls) return { content: resMsg?.content || 'Service unavailable.' };
     const toolCalls = await this.executeToolCalls(resMsg.tool_calls as ChatCompletionMessageFunctionToolCall[]);
     const finalResponse = await this.generateToolResponse(message, history, resMsg.tool_calls, toolCalls);
     return { content: finalResponse, toolCalls };
@@ -125,7 +124,7 @@ export class ChatHandler {
     const followUp = await this.client!.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: SYSTEM_PROMPT + "\n\nCRITICAL: You MUST now summarize the tool results below into the required markdown table format. Do not return empty or placeholder text." },
         ...history.slice(-10).map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMsg },
         { role: 'assistant', content: null, tool_calls: openAiTC },
@@ -136,7 +135,11 @@ export class ChatHandler {
         }))
       ]
     });
-    return followUp.choices[0]?.message?.content || 'Data processed successfully.';
+    const content = followUp.choices[0]?.message?.content;
+    if (!content || content.trim().length < 10) {
+        return "Analysis Error: The procurement database returned valid records, but I was unable to format the report correctly. Please retry your query or check the 'Verified Intelligence' status in the sidebar.";
+    }
+    return content;
   }
   private buildConversationMessages(userMessage: string, history: Message[]) {
     return [
