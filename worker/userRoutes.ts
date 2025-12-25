@@ -65,6 +65,62 @@ export function coreRoutes(app: Hono<{ Bindings: Env }>) {
     });
 }
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
+    app.get('/api/parts', async (c) => {
+        if (!c.env.DB) return c.json({ success: false, error: 'DB binding missing' }, { status: 503 });
+        try {
+            await ensureInventorySeeded(c.env.DB);
+            const results = await c.env.DB.prepare("SELECT * FROM Parts LIMIT 50").all();
+            const rows = results.results;
+            const acceptHeader = c.req.header('Accept') || '';
+            const format = c.req.query('format');
+            if (acceptHeader.includes('text/html') || format === 'html') {
+                const html = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Central Inventory Registry</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 2rem; background: #f8fafc; color: #1e293b; }
+                            table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+                            th { background: #0ea5e9; color: white; text-align: left; padding: 12px 16px; font-size: 0.875rem; text-transform: uppercase; }
+                            td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.875rem; }
+                            tr:last-child td { border-bottom: none; }
+                            tr:hover { background: #f1f5f9; }
+                            h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Central Inventory Registry</h1>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Part Number</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map(r => `
+                                    <tr>
+                                        <td>${r.id}</td>
+                                        <td><strong>${r.part_number}</strong></td>
+                                        <td>${r.part_description}</td>
+                                        <td>${r.category}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </body>
+                    </html>
+                `;
+                return c.html(html);
+            }
+            return c.json({ success: true, parts: rows });
+        } catch (error) {
+            return c.json({ success: false, error: 'Inspection failed' }, { status: 500 });
+        }
+    });
     app.get('/api/inventory', async (c) => {
         if (!c.env.DB) return c.json({ success: false, error: 'DB binding missing' }, { status: 503 });
         try {
@@ -99,9 +155,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const body = await c.req.json().catch(() => ({}));
             const { title, sessionId: providedSessionId, firstMessage } = body;
             const sessionId = providedSessionId || crypto.randomUUID();
-            // SANITIZATION: Clean up and truncate the title for the sidebar
             let sessionTitle = title || (firstMessage ? (firstMessage.slice(0, 24).trim() + '...') : `Search • ${new Date().toLocaleDateString()}`);
-            sessionTitle = sessionTitle.replace(/[^\w\s\.\-]/g, '').slice(0, 32);
+            sessionTitle = sessionTitle.replace(/[^\w\s.-]/g, '').slice(0, 32);
             await registerSession(c.env, sessionId, sessionTitle);
             return c.json({ success: true, data: { sessionId, title: sessionTitle } });
         } catch (error) {

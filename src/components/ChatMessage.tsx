@@ -51,10 +51,10 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
               line.split('|').filter(Boolean).map((s) => s.trim())
             );
             return (
-              <div key={idx} className="my-4 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950">
+              <div key={idx} className="my-4 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-950">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                    <thead className="bg-slate-100/80 dark:bg-slate-900/50">
                       <tr>
                         {headers.map((h, i) => (
                           <th key={i} className="px-5 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
@@ -69,10 +69,14 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                           {row.map((cell, cellIndex) => {
                             const header = headers[cellIndex]?.toLowerCase() || '';
                             const isEmail = header.includes('contact') || cell.includes('@');
+                            const isCompany = header.includes('company') || header.includes('name');
                             return (
-                              <td key={cellIndex} className="px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                              <td key={cellIndex} className={cn(
+                                "px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-300",
+                                isCompany && "truncate max-w-[200px]"
+                              )}>
                                 {isEmail ? (
-                                  <button 
+                                  <button
                                     onClick={() => handleCopyEmail(cell)}
                                     className="flex items-center gap-2 group/btn"
                                   >
@@ -92,7 +96,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                                 ) : header.includes('reliability') || header.includes('score') ? (
                                   <div className="flex items-center gap-2">
                                     <Star size={14} className="text-amber-500 fill-amber-500" />
-                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{cell}</span>
+                                    <span className="text-emerald-500 dark:text-emerald-400 font-bold">{cell}</span>
                                   </div>
                                 ) : (
                                   cell
