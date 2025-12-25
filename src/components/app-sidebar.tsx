@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Plus, MessageSquare, Trash2, ShieldCheck, Database } from "lucide-react";
+import { Plus, MessageSquare, Trash2, ShieldCheck, Database, Package } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +24,7 @@ export function AppSidebar(): JSX.Element {
   const currentSessionId = useChatStore((s) => s.sessionId);
   const setSessionId = useChatStore((s) => s.setSessionId);
   const setInputValue = useChatStore((s) => s.setInputValue);
+  const location = useLocation();
   const loadSessions = async () => {
     const res = await chatService.listSessions();
     if (res.success && res.data) {
@@ -61,6 +63,13 @@ export function AppSidebar(): JSX.Element {
         </div>
         <SidebarMenu>
           <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={location.pathname === "/parts"}>
+              <Link to="/parts" className="flex items-center gap-2 py-5 font-bold">
+                <Package size={18} /> <span>Inventory Manager</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleNewSearch}
               className="w-full bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2 py-5"
@@ -85,10 +94,10 @@ export function AppSidebar(): JSX.Element {
                 <SidebarMenuItem key={session.id}>
                   <SidebarMenuButton
                     onClick={() => handleSelectSession(session.id)}
-                    isActive={currentSessionId === session.id}
+                    isActive={currentSessionId === session.id && location.pathname === "/"}
                     className={cn(
                       "group transition-colors",
-                      currentSessionId === session.id
+                      currentSessionId === session.id && location.pathname === "/"
                         ? "bg-slate-100 dark:bg-slate-800"
                         : "hover:bg-slate-50 dark:hover:bg-slate-900"
                     )}
@@ -110,7 +119,7 @@ export function AppSidebar(): JSX.Element {
         <SidebarGroup className="mt-4 flex-1 flex flex-col min-h-0">
           <SidebarGroupLabel className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
             <Database size={12} className="text-sky-500" />
-            Component Catalog
+            Quick Catalog
           </SidebarGroupLabel>
           <div className="px-4 mt-2 flex-1 overflow-hidden">
             <PartsCatalog

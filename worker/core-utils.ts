@@ -11,8 +11,8 @@ export interface Env {
     OPENROUTER_API_KEY: string;
     CHAT_AGENT: DurableObjectNamespace<ChatAgent>;
     APP_CONTROLLER: DurableObjectNamespace<AppController>;
+    DB: D1Database;
 }
-
 /**
  * Get AppController stub for session management
  * Uses a singleton pattern with fixed ID for consistent routing
@@ -21,7 +21,6 @@ export function getAppController(env: Env): DurableObjectStub<AppController> {
   const id = env.APP_CONTROLLER.idFromName("controller");
   return env.APP_CONTROLLER.get(id);
 }
-
 /**
  * Register a new chat session with the control plane
  * Called automatically when a new ChatAgent is created
@@ -35,7 +34,6 @@ export async function registerSession(env: Env, sessionId: string, title?: strin
     // Don't throw - session should work even if registration fails
   }
 }
-
 /**
  * Update session activity timestamp
  * Called when a session receives messages
@@ -49,7 +47,6 @@ export async function updateSessionActivity(env: Env, sessionId: string): Promis
     // Don't throw - this is non-critical
   }
 }
-
 /**
  * Unregister a session from the control plane
  * Called when a session is explicitly deleted
