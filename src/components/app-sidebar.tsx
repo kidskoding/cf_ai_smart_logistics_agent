@@ -1,72 +1,109 @@
-/* This is a demo sidebar. **COMPULSORY** Edit this file to customize the sidebar OR remove it from appLayout OR don't use appLayout at all */
-import React from "react";
-import { Home, Layers, Compass, Star, Settings, LifeBuoy } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { History, Plus, MessageSquare, Trash2, ShieldCheck } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarHeader,
-  SidebarSeparator,
-  SidebarInput,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
-  SidebarMenuBadge,
 } from "@/components/ui/sidebar";
-
+import { chatService } from "@/lib/chat";
+import type { SessionInfo } from "../../worker/types";
+import { cn } from "@/lib/utils";
 export function AppSidebar(): JSX.Element {
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const loadSessions = async () => {
+    const res = await chatService.listSessions();
+    if (res.success && res.data) {
+      setSessions(res.data);
+    }
+  };
+  useEffect(() => {
+    loadSessions();
+    const interval = setInterval(loadSessions, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  const handleNewSearch = () => {
+    chatService.newSession();
+    window.location.reload();
+  };
+  const handleSelectSession = (id: string) => {
+    chatService.switchSession(id);
+    window.location.reload();
+  };
+  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await chatService.deleteSession(id);
+    loadSessions();
+  };
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1">
-          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-500" />
-          <span className="text-sm font-medium">Demo Sidebar</span>
+    <Sidebar className="border-r border-slate-200 dark:border-slate-800">
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-3 px-2 py-2 mb-4">
+          <div className="h-8 w-8 rounded-lg bg-sky-600 flex items-center justify-center text-white font-bold">
+            S
+          </div>
+          <span className="text-lg font-bold tracking-tight">SourceAI</span>
         </div>
-        <SidebarInput placeholder="Search" />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={handleNewSearch}
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2 py-5"
+            >
+              <Plus size={18} /> <span>New Procurement Search</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive>
-                <a href="#"><Home /> <span>Home</span></a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Layers /> <span>Projects</span></a>
-              </SidebarMenuButton>
-              <SidebarMenuAction>
-                <Star className="size-4" />
-              </SidebarMenuAction>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Compass /> <span>Explore</span></a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Quick Links</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Star /> <span>Starred</span></a>
-              </SidebarMenuButton>
-              <SidebarMenuBadge>5</SidebarMenuBadge>
-            </SidebarMenuItem>
+          <SidebarGroupLabel className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Recent Searches
+          </SidebarGroupLabel>
+          <SidebarMenu className="px-2 mt-2">
+            {sessions.length === 0 ? (
+              <div className="px-4 py-8 text-center text-xs text-muted-foreground italic">
+                No recent activity
+              </div>
+            ) : (
+              sessions.map((session) => (
+                <SidebarMenuItem key={session.id}>
+                  <SidebarMenuButton 
+                    onClick={() => handleSelectSession(session.id)}
+                    isActive={chatService.getSessionId() === session.id}
+                    className={cn(
+                      "group transition-colors",
+                      chatService.getSessionId() === session.id 
+                        ? "bg-slate-100 dark:bg-slate-800" 
+                        : "hover:bg-slate-50 dark:hover:bg-slate-900"
+                    )}
+                  >
+                    <MessageSquare className="size-4 text-slate-400" />
+                    <span className="truncate flex-1 text-sm">{session.title}</span>
+                  </SidebarMenuButton>
+                  <SidebarMenuAction 
+                    onClick={(e) => handleDeleteSession(e, session.id)}
+                    className="opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3 text-slate-400 hover:text-red-500" />
+                  </SidebarMenuAction>
+                </SidebarMenuItem>
+              ))
+            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="px-2 text-xs text-muted-foreground">A simple shadcn sidebar</div>
+      <SidebarFooter className="p-4 border-t border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+          <ShieldCheck size={14} className="text-emerald-500" />
+          <span>Verified Supplier Network Active</span>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

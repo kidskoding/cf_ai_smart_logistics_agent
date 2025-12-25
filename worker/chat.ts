@@ -214,12 +214,16 @@ export class ChatHandler {
    */
   private buildConversationMessages(userMessage: string, history: Message[]) {
     return [
-      { 
-        role: 'system' as const, 
-        content: 'You are a helpful AI assistant that helps users build and deploy web applications. You provide clear, concise guidance on development, deployment, and troubleshooting. Keep responses practical and actionable.' 
+      {
+        role: 'system' as const,
+        content: `You are SourceAI, a Senior Procurement Specialist.
+        Your primary goal is to help users find supplier information for industrial parts and materials.
+        When a user asks about suppliers or sourcing a part, ALWAYS use the 'find_suppliers' tool.
+        Present supplier data in a professional Markdown table with columns: Company, Contact, Last Order, and Reliability.
+        Keep your tone professional, efficient, and data-driven.`
       },
-      ...history.slice(-5).map(m => ({ 
-        role: m.role, 
+      ...history.slice(-5).map(m => ({
+        role: m.role,
         content: m.content 
       })),
       { role: 'user' as const, content: userMessage }
