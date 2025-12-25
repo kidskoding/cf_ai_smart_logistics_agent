@@ -7,13 +7,13 @@ interface ChatMessageProps {
   content: string;
 }
 export function ChatMessage({ role, content }: ChatMessageProps) {
-  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const isAssistant = role === 'assistant';
-  const handleCopy = (text: string, type: string) => {
+  const handleCopy = (text: string, type: string, uniqueId: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedText(text);
+    setCopiedId(uniqueId);
     toast.success(`${type} copied to clipboard`);
-    setTimeout(() => setCopiedText(null), 2000);
+    setTimeout(() => setCopiedId(null), 2000);
   };
   const renderContent = (text: string) => {
     if (!text) return null;
@@ -72,28 +72,39 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                             const isPartNumber = header.includes('part') || header.includes('id') || header.includes('number');
                             const isCompany = header.includes('supplier') || header.includes('company') || header.includes('name');
                             const isPrice = header.includes('price') || header.includes('cost') || header.includes('amount');
+                            const cellUniqueId = `cell-${idx}-${rowIndex}-${cellIndex}`;
                             return (
                               <td key={cellIndex} className={cn(
                                 "px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300",
                                 isCompany && "truncate max-w-[200px]"
                               )}>
                                 {isEmail ? (
-                                  <button onClick={() => handleCopy(cell, 'Email')} className="flex items-center gap-2 group/btn">
+                                  <button onClick={() => handleCopy(cell, 'Email', cellUniqueId)} className="flex items-center gap-2 group/btn">
                                     <Mail size={14} className="text-slate-400 group-hover:text-sky-500 transition-colors" />
                                     <span className="text-sky-600 dark:text-sky-400 underline decoration-sky-600/30 underline-offset-4 truncate max-w-[150px]">{cell}</span>
-                                    {copiedText === cell ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-300 opacity-0 group-hover/btn:opacity-100 transition-all" />}
+                                    {copiedId === cellUniqueId ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-300 opacity-0 group-hover/btn:opacity-100 transition-all" />}
                                   </button>
                                 ) : isPartNumber ? (
-                                  <button onClick={() => handleCopy(cell, 'Part Number')} className="flex items-center gap-2 group/part font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 hover:border-sky-500 transition-colors">
+                                  <button onClick={() => handleCopy(cell, 'Part Number', cellUniqueId)} className="flex items-center gap-2 group/part font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 hover:border-sky-500 transition-colors">
                                     <Hash size={12} className="text-slate-400 group-hover/part:text-sky-500" />
                                     <span>{cell}</span>
-                                    {copiedText === cell ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-slate-300 opacity-0 group-hover/part:opacity-100" />}
+                                    {copiedId === cellUniqueId ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-slate-300 opacity-0 group-hover/part:opacity-100" />}
                                   </button>
                                 ) : isPrice ? (
-                                  <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white tabular-nums">
-                                    <DollarSign size={14} className="text-emerald-500" />
-                                    <span>{parseFloat(cell.replace(/[^0-9.]/g, '')).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </div>
+                                  (() => {
+                                    const numericPrice = parseFloat(cell.replace(/[^0-9.]/g, ''));
+                                    const isValidNumber = !isNaN(numericPrice);
+                                    return (
+                                      <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white tabular-nums">
+                                        {isValidNumber && <DollarSign size={14} className="text-emerald-500 shrink-0" />}
+                                        <span>
+                                          {isValidNumber 
+                                            ? numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                            : cell}
+                                        </span>
+                                      </div>
+                                    );
+                                  })()
                                 ) : header.includes('order') || header.includes('date') ? (
                                   <div className="flex items-center gap-2">
                                     <Calendar size={14} className="text-slate-400" />
@@ -101,7 +112,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                                   </div>
                                 ) : header.includes('reliability') || header.includes('score') ? (
                                   <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full w-fit border border-emerald-100 dark:border-emerald-900/50">
-                                    <Star size={12} className="text-amber-500 fill-amber-500" />
+                                    <Star size={11} className="text-amber-500 fill-amber-500 mb-0.5" />
                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">{cell}</span>
                                   </div>
                                 ) : (

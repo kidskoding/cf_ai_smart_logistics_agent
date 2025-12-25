@@ -81,13 +81,13 @@ export function HomePage() {
   };
   return (
     <AppLayout className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
-      <header className="border-b bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl pl-16 pr-6 py-4 flex items-center justify-between z-10 shrink-0 transition-colors">
+      <header className="border-b bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl px-4 sm:pl-16 sm:pr-6 py-4 flex items-center justify-between z-10 shrink-0 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="bg-sky-600 p-2.5 rounded-xl text-white shadow-lg shadow-sky-600/20">
-            <PackageSearch size={22} />
+          <div className="bg-sky-600 p-2 rounded-xl sm:p-2.5 text-white shadow-lg shadow-sky-600/20">
+            <PackageSearch size={20} className="sm:size-[22px]" />
           </div>
           <div>
-            <h1 className="font-extrabold text-slate-900 dark:text-white leading-none mb-1 tracking-tight">SourceAI</h1>
+            <h1 className="font-extrabold text-slate-900 dark:text-white leading-none mb-1 tracking-tight text-sm sm:text-base">SourceAI</h1>
             <div className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Enterprise Network</p>
@@ -117,13 +117,13 @@ export function HomePage() {
                     <Sparkles size={48} className="text-sky-500 animate-pulse" />
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <h2 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Procurement Intelligence</h2>
-                  <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed text-lg font-medium">
+                <div className="space-y-4 px-4">
+                  <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Procurement Intelligence</h2>
+                  <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed text-base sm:text-lg font-medium">
                     Instantly retrieve supplier history, reliability scores, and contact details for industrial components.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full max-w-xl px-4">
                   {[
                     "Find suppliers for high-speed ball bearings",
                     "Sourcing options for 12V DC stepper motors",
@@ -136,7 +136,7 @@ export function HomePage() {
                       className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg hover:scale-[1.02] transition-all text-sm font-semibold group flex items-start gap-3"
                     >
                       <span className="text-sky-600 mt-0.5 group-hover:translate-x-1 transition-transform">→</span>
-                      <span className="flex-1">"{text}"</span>
+                      <span className="flex-1 line-clamp-1">{text}</span>
                     </button>
                   ))}
                 </div>
@@ -156,45 +156,46 @@ export function HomePage() {
                   ))}
                 </AnimatePresence>
                 {isLoading && (
-                  <div className="flex items-center gap-4 text-sky-600 pl-14 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <div className="flex items-center gap-4 text-sky-600 pl-4 sm:pl-14 animate-in fade-in slide-in-from-left-2 duration-300">
                     <div className="relative">
                       <div className="absolute inset-0 bg-sky-500/20 blur-md rounded-full" />
-                      <Loader2 size={20} className="animate-spin relative z-10" />
+                      <Loader2 size={20} className="animate-spin relative z-10 duration-700" />
                     </div>
-                    <span className="text-sm font-bold tracking-tight animate-pulse uppercase">Querying supplier nodes...</span>
+                    <span className="text-xs sm:text-sm font-bold tracking-tight animate-pulse uppercase">Querying supplier nodes...</span>
                   </div>
                 )}
               </div>
             )}
           </div>
-          <div className="shrink-0 pb-8 pt-4">
+          <div className="shrink-0 pb-6 sm:pb-8 pt-4">
             <div className="max-w-4xl mx-auto">
               <form onSubmit={handleSend} className="relative group">
-                <div className="absolute -inset-1.5 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-[1.4rem] blur opacity-15 group-focus-within:opacity-30 transition duration-1000" />
+                <div className="absolute -inset-1.5 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-[1.4rem] blur opacity-10 group-focus-within:opacity-25 transition duration-1000" />
                 <div className="relative">
                   <Input
                     ref={inputRef}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Describe the component to find verified suppliers..."
-                    className="pr-16 py-8 bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xl focus:ring-sky-500/50 transition-all text-base font-medium placeholder:text-slate-400"
+                    className="pr-16 py-7 sm:py-8 bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xl focus:ring-sky-500/50 transition-all text-sm sm:text-base font-medium placeholder:text-slate-400"
                   />
                   <Button
                     type="submit"
                     disabled={isLoading || !inputValue.trim()}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 h-12 w-12 rounded-xl bg-sky-600 hover:bg-sky-700 text-white shadow-xl transition-all active:scale-90 disabled:bg-slate-200 dark:disabled:bg-slate-800"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-sky-600 hover:bg-sky-700 text-white shadow-xl transition-all active:scale-90 disabled:bg-slate-200 dark:disabled:bg-slate-800"
                   >
-                    <Send size={22} />
+                    <Send size={20} className="sm:size-[22px]" />
                   </Button>
                 </div>
               </form>
-              <div className="mt-5 flex items-center justify-center gap-3 text-[11px] font-bold text-muted-foreground bg-white/50 dark:bg-slate-900/50 py-2.5 px-6 rounded-full w-fit mx-auto border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-sm shadow-sm">
-                <AlertCircle size={14} className="text-amber-500" />
-                <span className="uppercase tracking-widest">Enterprise results verified by internal procurement network</span>
+              <div className="mt-4 flex items-center justify-center gap-2.5 text-[10px] sm:text-[11px] font-bold text-muted-foreground bg-white/50 dark:bg-slate-900/50 py-2 px-5 sm:py-2.5 sm:px-6 rounded-full w-fit mx-auto border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-sm shadow-sm">
+                <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                <span className="uppercase tracking-widest text-center">Enterprise results verified by procurement network</span>
               </div>
             </div>
-            <div className="mt-4 text-[10px] text-center text-muted-foreground max-w-md mx-auto">
-              Note: There is a limit on the number of requests that can be made to the AI servers across all user apps in a given time period.
+            <div className="mt-5 text-[9px] sm:text-[10px] text-center text-muted-foreground/80 max-w-md mx-auto px-4 leading-relaxed">
+              Notice: AI capabilities are subject to request limits across all active sessions. 
+              Always verify critical supply chain data with internal systems.
             </div>
           </div>
         </div>
