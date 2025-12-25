@@ -51,7 +51,7 @@ export async function getToolDefinitions() {
 }
 // Deterministic supplier generator for Phase 1
 function generateMockSuppliers(part: string) {
-  const seeds = [part.length, part.charCodeAt(0) || 0, part.charCodeAt(part.length - 1) || 0];
+  const seeds = [part.length, part.charCodeAt(0) || 0, part.length > 0 ? part.charCodeAt(part.length - 1) : 0];
   const companies = ["Global Dynamics Corp", "Precision Machining Ltd", "Apex Industrial Solutions", "Vertex Components", "Legacy Parts Co", "Quantum Logistics"];
   const results = [];
   for (let i = 0; i < 3; i++) {
@@ -69,22 +69,25 @@ function generateMockSuppliers(part: string) {
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
   try {
     switch (name) {
-      case 'find_suppliers':
+      case 'find_suppliers': {
         const part = (args.part_description as string) || "generic part";
         return { suppliers: generateMockSuppliers(part) };
-      case 'get_weather':
+      }
+      case 'get_weather': {
+        const location = (args.location as string) ?? 'unknown';
         return {
-          location: args.location as string,
+          location,
           temperature: Math.floor(Math.random() * 40) - 10,
           condition: ['Sunny', 'Cloudy', 'Rainy', 'Snowy'][Math.floor(Math.random() * 4)],
           humidity: Math.floor(Math.random() * 100)
         };
+      }
       case 'web_search': {
         const { query, url } = args;
         if (typeof url === 'string') {
           return { content: "Content fetching simulated for Phase 1" };
         }
-        return { content: `Search results for ${query} simulated` };
+        return { content: `Search results for ${query ?? 'unknown query'} simulated` };
       }
       default: {
         const content = await mcpManager.executeTool(name, args);

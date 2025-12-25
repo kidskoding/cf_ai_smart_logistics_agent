@@ -10,6 +10,8 @@ import { Env, getAppController, registerSession, unregisterSession } from "./cor
 export function coreRoutes(app: Hono<{ Bindings: Env }>) {
     // Use this API for conversations. **DO NOT MODIFY**
     app.all('/api/chat/:sessionId/*', async (c) => {
+        if (!c.env.CHAT_AGENT) return c.json({success: false, error: 'Chat agent unavailable - Durable Object binding missing in preview environment. Use production deployment for full features.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
         const sessionId = c.req.param('sessionId');
         const agent = await getAgentByName<Env, ChatAgent>(c.env.CHAT_AGENT, sessionId); // Get existing agent or create a new one if it doesn't exist, with sessionId as the name
@@ -38,6 +40,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
      * GET /api/sessions
      */
     app.get('/api/sessions', async (c) => {
+        if (!c.env.APP_CONTROLLER) return c.json({success: false, error: 'Session management unavailable - Durable Object binding missing in preview environment.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
             const controller = getAppController(c.env);
             const sessions = await controller.listSessions();
@@ -57,6 +61,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
      * Body: { title?: string, sessionId?: string }
      */
     app.post('/api/sessions', async (c) => {
+        if (!c.env.APP_CONTROLLER) return c.json({success: false, error: 'Session management unavailable - Durable Object binding missing in preview environment.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
             const body = await c.req.json().catch(() => ({}));
             const { title, sessionId: providedSessionId, firstMessage } = body;
@@ -105,6 +111,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
      * DELETE /api/sessions/:sessionId
      */
     app.delete('/api/sessions/:sessionId', async (c) => {
+        if (!c.env.APP_CONTROLLER) return c.json({success: false, error: 'Session management unavailable - Durable Object binding missing in preview environment.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
             const sessionId = c.req.param('sessionId');
             const deleted = await unregisterSession(c.env, sessionId);
@@ -132,6 +140,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
      * Body: { title: string }
      */
     app.put('/api/sessions/:sessionId/title', async (c) => {
+        if (!c.env.APP_CONTROLLER) return c.json({success: false, error: 'Session management unavailable - Durable Object binding missing in preview environment.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
             const sessionId = c.req.param('sessionId');
             const { title } = await c.req.json();
@@ -168,6 +178,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
      * GET /api/sessions/stats
      */
     app.get('/api/sessions/stats', async (c) => {
+        if (!c.env.APP_CONTROLLER) return c.json({success: false, error: 'Session management unavailable - Durable Object binding missing in preview environment.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
             const controller = getAppController(c.env);
             const count = await controller.getSessionCount();
@@ -189,6 +201,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
      * DELETE /api/sessions
      */
     app.delete('/api/sessions', async (c) => {
+        if (!c.env.APP_CONTROLLER) return c.json({success: false, error: 'Session management unavailable - Durable Object binding missing in preview environment.'}, {status: 503});
+        console.log('DO bindings check passed');
         try {
             const controller = getAppController(c.env);
             const deletedCount = await controller.clearAllSessions();

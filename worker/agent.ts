@@ -7,7 +7,7 @@ import { createMessage, createStreamResponse, createEncoder } from './utils';
 
 /**
  * ChatAgent - Main agent class using Cloudflare Agents SDK
- * 
+ *
  * This class extends the Agents SDK Agent class and handles all chat operations.
  */
 export class ChatAgent extends Agent<Env, ChatState> {
@@ -25,12 +25,22 @@ export class ChatAgent extends Agent<Env, ChatState> {
    * Initialize chat handler when agent starts
    */
   async onStart(): Promise<void> {
-    this.chatHandler = new ChatHandler(
-      this.env.CF_AI_BASE_URL ,
-      this.env.CF_AI_API_KEY,
-      this.state.model
-    );
-    
+    try {
+      this.chatHandler = new ChatHandler(
+        this.env.CF_AI_BASE_URL,
+        this.env.CF_AI_API_KEY,
+        this.state.model
+      );
+    } catch(e) {
+      console.error('Failed to init ChatHandler:', e);
+      this.chatHandler = {
+        async processMessage(msg: string, history: any[], onChunk?: (chunk: string) => void) {
+          return {content: 'Chat service temporarily unavailable due to configuration issue.'};
+        },
+        updateModel() {}
+      } as any;
+    }
+
     console.log(`ChatAgent ${this.name} initialized with session ${this.state.sessionId}`);
   }
 
@@ -46,11 +56,11 @@ export class ChatAgent extends Agent<Env, ChatState> {
       if (method === 'GET' && url.pathname === '/messages') {
         return this.handleGetMessages();
       }
-      
+
       if (method === 'POST' && url.pathname === '/chat') {
         return this.handleChatMessage(await request.json());
       }
-      
+
       if (method === 'DELETE' && url.pathname === '/clear') {
         return this.handleClearMessages();
       }
@@ -58,17 +68,17 @@ export class ChatAgent extends Agent<Env, ChatState> {
       if (method === 'POST' && url.pathname === '/model') {
         return this.handleModelUpdate(await request.json());
       }
-      
-      return Response.json({ 
-        success: false, 
-        error: API_RESPONSES.NOT_FOUND 
+
+      return Response.json({
+        success: false,
+        error: API_RESPONSES.NOT_FOUND
       }, { status: 404 });
 
     } catch (error) {
       console.error('Request handling error:', error);
-      return Response.json({ 
-        success: false, 
-        error: API_RESPONSES.INTERNAL_ERROR 
+      return Response.json({
+        success: false,
+        error: API_RESPONSES.INTERNAL_ERROR
       }, { status: 500 });
     }
   }
@@ -77,9 +87,9 @@ export class ChatAgent extends Agent<Env, ChatState> {
    * Get current conversation messages
    */
   private handleGetMessages(): Response {
-    return Response.json({ 
-      success: true, 
-      data: this.state 
+    return Response.json({
+      success: true,
+      data: this.state
     });
   }
 
@@ -91,9 +101,9 @@ export class ChatAgent extends Agent<Env, ChatState> {
 
     // Validate input
     if (!message?.trim()) {
-      return Response.json({ 
-        success: false, 
-        error: API_RESPONSES.MISSING_MESSAGE 
+      return Response.json({
+        success: false,
+        error: API_RESPONSES.MISSING_MESSAGE
       }, { status: 400 });
     }
 
@@ -102,15 +112,15 @@ export class ChatAgent extends Agent<Env, ChatState> {
       this.setState({ ...this.state, model });
       this.chatHandler?.updateModel(model);
     }
-    
+
     const userMessage = createMessage('user', message.trim());
-    
-    this.setState({
+    const stateAfterUser = {
       ...this.state,
       messages: [...this.state.messages, userMessage],
       isProcessing: true
-    });
-    
+    };
+    this.setState(stateAfterUser);
+
     try {
       // Process message through chat handler
       if (!this.chatHandler) {
@@ -121,20 +131,21 @@ export class ChatAgent extends Agent<Env, ChatState> {
         const { readable, writable } = new TransformStream();
         const writer = writable.getWriter();
         const encoder = createEncoder();
-        
+
         // Start processing in background
         (async () => {
           try {
             this.setState({ ...this.state, streamingMessage: '' });
-            
+
             const response = await this.chatHandler!.processMessage(
-              message, 
-              this.state.messages,
+              message,
+              stateAfterUser.messages,
               (chunk: string) => {
                 try {
-                  this.setState({ 
-                    ...this.state, 
-                    streamingMessage: (this.state.streamingMessage || '') + chunk 
+                  const currentStreaming = this.state.streamingMessage || '';
+                  this.setState({
+                    ...this.state,
+                    streamingMessage: currentStreaming + chunk
                   });
                   writer.write(encoder.encode(chunk));
                 } catch (writeError) {
@@ -144,23 +155,21 @@ export class ChatAgent extends Agent<Env, ChatState> {
             );
 
             const assistantMessage = createMessage('assistant', response.content, response.toolCalls);
-            
-            // Update state with final response
             this.setState({
               ...this.state,
               messages: [...this.state.messages, assistantMessage],
               isProcessing: false,
               streamingMessage: ''
             });
-            
+
           } catch (error) {
             console.error('Streaming error:', error);
-            
+
             // Write error to stream
             try {
               const errorMessage = 'Sorry, I encountered an error processing your request.';
               writer.write(encoder.encode(errorMessage));
-              
+
               const errorMsg = createMessage('assistant', errorMessage);
               this.setState({
                 ...this.state,
@@ -185,30 +194,28 @@ export class ChatAgent extends Agent<Env, ChatState> {
 
       // Non-streaming response
       const response = await this.chatHandler.processMessage(
-        message, 
-        this.state.messages
+        message,
+        stateAfterUser.messages
       );
 
       const assistantMessage = createMessage('assistant', response.content, response.toolCalls);
-      
-      // Update state with response
       this.setState({
         ...this.state,
         messages: [...this.state.messages, assistantMessage],
         isProcessing: false
       });
-      
-      return Response.json({ 
-        success: true, 
-        data: this.state 
+
+      return Response.json({
+        success: true,
+        data: this.state
       });
 
     } catch (error) {
       console.error('Chat processing error:', error);
       this.setState({ ...this.state, isProcessing: false });
-      return Response.json({ 
-        success: false, 
-        error: API_RESPONSES.PROCESSING_ERROR 
+      return Response.json({
+        success: false,
+        error: API_RESPONSES.PROCESSING_ERROR
       }, { status: 500 });
     }
   }
@@ -217,13 +224,13 @@ export class ChatAgent extends Agent<Env, ChatState> {
    * Clear conversation history
    */
   private handleClearMessages(): Response {
-    this.setState({ 
-      ...this.state, 
-      messages: [] 
+    this.setState({
+      ...this.state,
+      messages: []
     });
-    return Response.json({ 
-      success: true, 
-      data: this.state 
+    return Response.json({
+      success: true,
+      data: this.state
     });
   }
 
@@ -232,13 +239,14 @@ export class ChatAgent extends Agent<Env, ChatState> {
    */
   private handleModelUpdate(body: { model: string }): Response {
     const { model } = body;
-    
+
     this.setState({ ...this.state, model });
     this.chatHandler?.updateModel(model);
-    
-    return Response.json({ 
-      success: true, 
-      data: this.state 
+
+    return Response.json({
+      success: true,
+      data: this.state
     });
   }
 }
+//
