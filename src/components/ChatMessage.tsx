@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check } from 'lucide-react';
+import { User, ShieldCheck, Mail, Calendar, Star, Copy, Check, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 interface ChatMessageProps {
   role: 'user' | 'assistant' | 'system';
@@ -9,10 +9,10 @@ interface ChatMessageProps {
 export function ChatMessage({ role, content }: ChatMessageProps) {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const isAssistant = role === 'assistant';
-  const handleCopyEmail = (email: string) => {
-    navigator.clipboard.writeText(email);
-    setCopiedText(email);
-    toast.success("Email copied to clipboard");
+  const handleCopy = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(text);
+    toast.success(`${type} copied to clipboard`);
     setTimeout(() => setCopiedText(null), 2000);
   };
   const renderContent = (text: string) => {
@@ -57,7 +57,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                     <thead className="bg-slate-100/80 dark:bg-slate-900/50">
                       <tr>
                         {headers.map((h, i) => (
-                          <th key={i} className="px-5 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                          <th key={i} className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                             {h}
                           </th>
                         ))}
@@ -69,24 +69,24 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                           {row.map((cell, cellIndex) => {
                             const header = headers[cellIndex]?.toLowerCase() || '';
                             const isEmail = header.includes('contact') || cell.includes('@');
+                            const isPartNumber = header.includes('part') || header.includes('id') || header.includes('number');
                             const isCompany = header.includes('company') || header.includes('name');
                             return (
                               <td key={cellIndex} className={cn(
-                                "px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-300",
+                                "px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300",
                                 isCompany && "truncate max-w-[200px]"
                               )}>
                                 {isEmail ? (
-                                  <button
-                                    onClick={() => handleCopyEmail(cell)}
-                                    className="flex items-center gap-2 group/btn"
-                                  >
+                                  <button onClick={() => handleCopy(cell, 'Email')} className="flex items-center gap-2 group/btn">
                                     <Mail size={14} className="text-slate-400 group-hover:text-sky-500 transition-colors" />
                                     <span className="text-sky-600 dark:text-sky-400 underline decoration-sky-600/30 underline-offset-4 truncate max-w-[150px]">{cell}</span>
-                                    {copiedText === cell ? (
-                                      <Check size={12} className="text-emerald-500" />
-                                    ) : (
-                                      <Copy size={12} className="text-slate-300 opacity-0 group-hover/btn:opacity-100 transition-all" />
-                                    )}
+                                    {copiedText === cell ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-300 opacity-0 group-hover/btn:opacity-100 transition-all" />}
+                                  </button>
+                                ) : isPartNumber ? (
+                                  <button onClick={() => handleCopy(cell, 'Part Number')} className="flex items-center gap-2 group/part font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 hover:border-sky-500 transition-colors">
+                                    <Hash size={12} className="text-slate-400 group-hover/part:text-sky-500" />
+                                    <span>{cell}</span>
+                                    {copiedText === cell ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-slate-300 opacity-0 group-hover/part:opacity-100" />}
                                   </button>
                                 ) : header.includes('order') || header.includes('date') ? (
                                   <div className="flex items-center gap-2">
@@ -94,9 +94,9 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
                                     <span className="tabular-nums">{cell}</span>
                                   </div>
                                 ) : header.includes('reliability') || header.includes('score') ? (
-                                  <div className="flex items-center gap-2">
-                                    <Star size={14} className="text-amber-500 fill-amber-500" />
-                                    <span className="text-emerald-500 dark:text-emerald-400 font-bold">{cell}</span>
+                                  <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full w-fit border border-emerald-100 dark:border-emerald-900/50">
+                                    <Star size={12} className="text-amber-500 fill-amber-500" />
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">{cell}</span>
                                   </div>
                                 ) : (
                                   cell

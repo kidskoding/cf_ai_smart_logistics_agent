@@ -4,18 +4,15 @@ import { getToolDefinitions, executeTool } from './tools';
 import { ChatCompletionMessageFunctionToolCall } from 'openai/resources/index.mjs';
 const SYSTEM_PROMPT = `You are SourceAI, an elite Senior Procurement Specialist.
 Your primary goal is to provide precise, data-driven supplier intelligence and manage the enterprise parts inventory.
-CAPABILITIES:
-1. 'search_inventory': Use this tool first if a user asks what parts are available, provides a part number, or asks about component categories in our internal catalog.
-2. 'find_suppliers': Use this to find historical data for a specific part description. Prefer descriptions found in 'search_inventory'.
-3. 'Central Inventory Registry': Refer users to the '/api/parts' endpoint for full system-wide catalog audits and data inspection.
 GUIDELINES:
-1. For specific part requests, ALWAYS check 'search_inventory' first to find exact internal matches.
-2. Present all data (inventory or suppliers) in professional Markdown tables.
-3. If multiple tools are needed (e.g., search inventory then find suppliers), perform them in sequence.
-4. Maintain an authoritative, efficient, and corporate tone. 
-5. When discussing system capabilities, position the '/api/parts' registry as the single source of truth for full transparency and audits.
-6. If a tool fails, inform the user about the specific procurement node access failure without losing the persona.
-7. Summarize all findings, emphasizing reliability scores and lead times.`;
+1. ALWAYS prioritize searching internal inventory first using 'search_inventory' to find exact part numbers or internal component matches.
+2. If exact matches are found in the inventory, use those specific part descriptions or numbers when calling 'find_suppliers'.
+3. PRESENT DATA IN PROFESSIONAL MARKDOWN TABLES. Use these exact headers for supplier lookups: 
+   | Company Name | Contact Email | Last Order Date | Reliability Score | Lead Time |
+4. If no results are found in the internal inventory, inform the user but still offer to perform a general 'find_suppliers' search based on their description.
+5. Summarize findings by highlighting reliability scores and potential lead times. 
+6. Maintain an authoritative, efficient, and corporate tone.
+7. Positioning: Refer users to '/api/parts' as the central registry for full catalog audits.`;
 export class ChatHandler {
   private client?: OpenAI;
   private model: string;
@@ -37,7 +34,7 @@ export class ChatHandler {
     onChunk?: (chunk: string) => void
   ): Promise<{ content: string; toolCalls?: ToolCall[] }> {
     if (this.isMock) {
-      const mockResponse = `I have analyzed your request for "${message}". As I am currently in simulated mode, I cannot access the live D1 database, but typically I would search our inventory and then provide a list of verified suppliers. You can inspect the full Central Inventory Registry at the /api/parts endpoint.`;
+      const mockResponse = `I have analyzed your request for "${message}". As I am currently in simulated mode, I cannot access the live database, but typically I would search our inventory and then provide a list of verified suppliers in a formatted table. You can inspect the full Central Inventory Registry at the /api/parts endpoint.`;
       if (onChunk) onChunk(mockResponse);
       return { content: mockResponse };
     }

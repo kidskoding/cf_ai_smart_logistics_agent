@@ -81,7 +81,7 @@ export function HomePage() {
   };
   return (
     <AppLayout className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
-      <header className="border-b bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl px-6 py-4 flex items-center justify-between z-10 shrink-0 transition-colors">
+      <header className="border-b bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl pl-16 pr-6 py-4 flex items-center justify-between z-10 shrink-0 transition-colors">
         <div className="flex items-center gap-3">
           <div className="bg-sky-600 p-2.5 rounded-xl text-white shadow-lg shadow-sky-600/20">
             <PackageSearch size={22} />
@@ -103,7 +103,7 @@ export function HomePage() {
           <Plus size={16} /> <span className="hidden sm:inline font-semibold">New Search</span>
         </Button>
       </header>
-      <main className="flex-1 overflow-hidden flex flex-col relative">
+      <main className="flex-1 overflow-hidden flex flex-col relative bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)]">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col overflow-hidden">
           <div
             ref={scrollRef}
@@ -133,7 +133,7 @@ export function HomePage() {
                     <button
                       key={text}
                       onClick={() => handleSuggestClick(text)}
-                      className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg transition-all text-sm font-semibold group flex items-start gap-3"
+                      className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg hover:scale-[1.02] transition-all text-sm font-semibold group flex items-start gap-3"
                     >
                       <span className="text-sky-600 mt-0.5 group-hover:translate-x-1 transition-transform">→</span>
                       <span className="flex-1">"{text}"</span>
