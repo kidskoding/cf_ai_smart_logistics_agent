@@ -4,6 +4,7 @@ import { ChatAgent } from './agent';
 import { API_RESPONSES } from './config';
 import { Env, getAppController, registerSession, unregisterSession } from "./core-utils";
 async function ensureInventorySeeded(db: D1Database) {
+  try {
     await db.prepare(`
         CREATE TABLE IF NOT EXISTS Parts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,21 +35,14 @@ async function ensureInventorySeeded(db: D1Database) {
             ['REL-5V-1CH', '5V Single Channel Relay Module', 'Power'],
             ['SW-SPDT-MINI', 'Miniature SPDT Toggle Switch', 'Electromechanical'],
             ['CRY-16MHZ', '16MHz HC-49S Crystal Oscillator', 'Timing'],
-            ['POT-10K-LIN', '10k Ohm Linear Potentiometer', 'Passives'],
-            ['GPU-RTX-4070', 'NVIDIA GeForce RTX 4070 Graphics Card', 'Processors'],
-            ['IC-555-TMR', 'Precision Timer Integrated Circuit', 'Analog'],
-            ['BAT-CR2032', '3V Lithium Coin Cell Battery', 'Power'],
-            ['FUSE-BLADE-10A', '10A Automotive Blade Fuse', 'Protection'],
-            ['PCB-FR4-100X150', 'Double Sided FR4 Prototyping Board', 'Prototyping'],
-            ['IND-100UH-2A', '100uH 2A Power Inductor', 'Passives'],
-            ['BRD-UNO-R3', 'Arduino Uno R3 Development Board', 'Microcontrollers'],
-            ['TRANS-2N2222', 'NPN General Purpose Transistor TO-92', 'Discrete'],
-            ['IC-74HC595', '8-Bit Shift Register with Latched Output', 'Logic'],
-            ['TERM-BLOCK-2P', '5.08mm Pitch 2-Pin Terminal Block', 'Connectors']
+            ['POT-10K-LIN', '10k Ohm Linear Potentiometer', 'Passives']
         ];
         const stmt = db.prepare("INSERT INTO Parts (part_number, part_description, category) VALUES (?, ?, ?)");
         await db.batch(parts.map(p => stmt.bind(p[0], p[1], p[2])));
     }
+  } catch (error) {
+    console.error("Database seeding failed, but worker continuing:", error);
+  }
 }
 export function coreRoutes(app: Hono<{ Bindings: Env }>) {
     app.all('/api/chat/:sessionId/*', async (c) => {
@@ -82,7 +76,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                     "SELECT * FROM Parts WHERE part_number LIKE ? OR part_description LIKE ? OR category LIKE ?"
                 ).bind(`%${query}%`, `%${query}%`, `%${query}%`).all();
             } else {
-                results = await c.env.DB.prepare("SELECT * FROM Parts").all();
+                results = await c.env.DB.prepare("SELECT * FROM Parts LIMIT 100").all();
             }
             return c.json({ success: true, data: results.results });
         } catch (error) {
@@ -105,7 +99,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const body = await c.req.json().catch(() => ({}));
             const { title, sessionId: providedSessionId, firstMessage } = body;
             const sessionId = providedSessionId || crypto.randomUUID();
-            let sessionTitle = title || (firstMessage ? (firstMessage.slice(0, 32) + '...') : `Search • ${new Date().toLocaleDateString()}`);
+            // SANITIZATION: Clean up and truncate the title for the sidebar
+            let sessionTitle = title || (firstMessage ? (firstMessage.slice(0, 24).trim() + '...') : `Search • ${new Date().toLocaleDateString()}`);
+            sessionTitle = sessionTitle.replace(/[^\w\s\.\-]/g, '').slice(0, 32);
             await registerSession(c.env, sessionId, sessionTitle);
             return c.json({ success: true, data: { sessionId, title: sessionTitle } });
         } catch (error) {
@@ -119,7 +115,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const deleted = await unregisterSession(c.env, sessionId);
             return c.json({ success: true, data: { deleted } });
         } catch (error) {
-            return c.json({ success: false, error: 'Failed to delete' }, { status: 500 });
+            return c.json({ success: false, error: 'Failed to delete session' }, { status: 500 });
         }
     });
 }

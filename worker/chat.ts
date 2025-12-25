@@ -5,14 +5,15 @@ import { ChatCompletionMessageFunctionToolCall } from 'openai/resources/index.mj
 const SYSTEM_PROMPT = `You are SourceAI, an elite Senior Procurement Specialist.
 Your primary goal is to provide precise, data-driven supplier intelligence and manage the enterprise parts inventory.
 CAPABILITIES:
-1. 'search_inventory': Use this tool if a user provides a specific part number, asks what parts are available, or asks about specific component categories in our internal database.
-2. 'find_suppliers': Once a part is identified, use this to find the last 3 historical suppliers.
+1. 'search_inventory': Use this tool first if a user asks what parts are available, provides a part number, or asks about component categories in our internal catalog.
+2. 'find_suppliers': Use this to find historical data for a specific part description. Prefer descriptions found in 'search_inventory'.
 GUIDELINES:
-1. If a user asks a general question about sourcing, ALWAYS search the internal 'search_inventory' first to see if we have an exact match in our catalog.
-2. Present all data (parts or suppliers) in professional Markdown tables.
-3. Maintain an authoritative and efficient tone.
-4. If a tool fails, explain that you are currently unable to access that specific procurement node.
-5. Always summarize findings, highlighting the most reliable options.`;
+1. For specific part requests, ALWAYS check 'search_inventory' first to find exact internal matches.
+2. Present all data (inventory or suppliers) in professional Markdown tables.
+3. If multiple tools are needed (e.g., search inventory then find suppliers), perform them in sequence.
+4. Maintain an authoritative, efficient, and corporate tone.
+5. If a tool fails, inform the user about the specific procurement node access failure without losing the persona.
+6. Summarize all findings, emphasizing reliability scores and lead times.`;
 export class ChatHandler {
   private client?: OpenAI;
   private model: string;
@@ -126,7 +127,7 @@ export class ChatHandler {
       model: this.model,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        ...history.slice(-3).map(m => ({ role: m.role, content: m.content })),
+        ...history.slice(-10).map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMsg },
         { role: 'assistant', content: null, tool_calls: openAiTC },
         ...results.map((res, i) => ({
@@ -136,12 +137,12 @@ export class ChatHandler {
         }))
       ]
     });
-    return followUp.choices[0]?.message?.content || 'Data processed.';
+    return followUp.choices[0]?.message?.content || 'Data processed successfully.';
   }
   private buildConversationMessages(userMessage: string, history: Message[]) {
     return [
       { role: 'system' as const, content: SYSTEM_PROMPT },
-      ...history.slice(-5).map(m => ({ role: m.role, content: m.content })),
+      ...history.slice(-10).map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: userMessage }
     ];
   }

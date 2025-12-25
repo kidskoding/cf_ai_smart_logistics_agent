@@ -28,6 +28,7 @@ export function HomePage() {
   };
   useEffect(() => {
     loadMessages();
+    inputRef.current?.focus();
   }, [sessionId]);
   useEffect(() => {
     if (scrollRef.current) {
@@ -63,6 +64,7 @@ export function HomePage() {
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
     } finally {
       setIsLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
   const startNewSession = () => {
@@ -71,6 +73,11 @@ export function HomePage() {
     setMessages([]);
     setInputValue('');
     toast.info("Started new procurement inquiry");
+    inputRef.current?.focus();
+  };
+  const handleSuggestClick = (text: string) => {
+    setInputValue(text);
+    inputRef.current?.focus();
   };
   return (
     <AppLayout className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -125,7 +132,7 @@ export function HomePage() {
                   ].map((text) => (
                     <button
                       key={text}
-                      onClick={() => setInputValue(text)}
+                      onClick={() => handleSuggestClick(text)}
                       className="text-left px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-900/20 hover:shadow-lg transition-all text-sm font-semibold group flex items-start gap-3"
                     >
                       <span className="text-sky-600 mt-0.5 group-hover:translate-x-1 transition-transform">→</span>
