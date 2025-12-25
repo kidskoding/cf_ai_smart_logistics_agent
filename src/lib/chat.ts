@@ -1,29 +1,26 @@
 import type { Message, ChatState, ToolCall, WeatherResult, MCPResult, ErrorResult, SessionInfo } from '../../worker/types';
-
+import { toast } from 'sonner';
 export interface ChatResponse {
   success: boolean;
   data?: ChatState;
   error?: string;
 }
-
 export const MODELS = [
   { id: 'google-ai-studio/gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
   { id: 'google-ai-studio/gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
   { id: 'google-ai-studio/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
 ];
-
 class ChatService {
   private sessionId: string;
   private baseUrl: string;
-
   constructor() {
-    this.sessionId = crypto.randomUUID();
+    this.sessionId = localStorage.getItem('source_ai_last_session') || crypto.randomUUID();
     this.baseUrl = `/api/chat/${this.sessionId}`;
+    localStorage.setItem('source_ai_last_session', this.sessionId);
   }
-
   async sendMessage(
-    message: string, 
-    model?: string, 
+    message: string,
+    model?: string,
     onChunk?: (chunk: string) => void
   ): Promise<ChatResponse> {
     try {
@@ -32,98 +29,62 @@ class ChatService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, model, stream: !!onChunk }),
       });
-
-      if (onChunk && response.body) {
-        if (!response.ok) {
-          try {
-            const errData = await response.json();
-            throw new Error(errData.error || `HTTP ${response.status}`);
-          } catch (e) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Server error (${response.status})`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) { /* ignore */ }
+        if (response.status === 503) {
+          toast.error("Deployment issue: Durable Object bindings missing.");
         }
-
-        // Handle streaming response
+        throw new Error(errorMessage);
+      }
+      if (onChunk && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let fullResponse = '';
-
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             const chunk = decoder.decode(value, { stream: true });
-            if (chunk) {
-              fullResponse += chunk;
-              onChunk(chunk);
-            }
+            if (chunk) onChunk(chunk);
           }
         } finally {
           reader.releaseLock();
         }
-
         return { success: true };
       }
-
-      // Non-streaming response - always parse JSON
       return await response.json();
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('ChatService.sendMessage failed:', error);
       return { success: false, error: (error as Error).message };
     }
   }
-
   async getMessages(): Promise<ChatResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/messages`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
     } catch (error) {
-      console.error('Failed to get messages:', error);
       return { success: false, error: (error as Error).message };
     }
   }
-
-  async clearMessages(): Promise<ChatResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/clear`, {
-        method: 'DELETE'
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Failed to clear messages:', error);
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
   getSessionId(): string {
     return this.sessionId;
   }
-
   newSession(): void {
     this.sessionId = crypto.randomUUID();
     this.baseUrl = `/api/chat/${this.sessionId}`;
+    localStorage.setItem('source_ai_last_session', this.sessionId);
   }
-
   switchSession(sessionId: string): void {
+    if (!sessionId) return;
     this.sessionId = sessionId;
     this.baseUrl = `/api/chat/${sessionId}`;
+    localStorage.setItem('source_ai_last_session', sessionId);
   }
-
-  // Session Management Methods
-  async createSession(title?: string, sessionId?: string, firstMessage?: string): Promise<{ success: boolean; data?: { sessionId: string; title: string }; error?: string }> {
-    try {
-      const response = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, sessionId, firstMessage })
-      });
-      return await response.json();
-    } catch (error) {
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
   async listSessions(): Promise<{ success: boolean; data?: SessionInfo[]; error?: string }> {
     try {
       const response = await fetch('/api/sessions');
@@ -132,94 +93,16 @@ class ChatService {
       return { success: false, error: (error as Error).message };
     }
   }
-
   async deleteSession(sessionId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+      if (sessionId === this.sessionId) {
+        this.newSession();
+      }
       return await response.json();
     } catch (error) {
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
-  async updateSessionTitle(sessionId: string, title: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}/title`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
-      });
-      return await response.json();
-    } catch (error) {
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
-  async clearAllSessions(): Promise<{ success: boolean; data?: { deletedCount: number }; error?: string }> {
-    try {
-      const response = await fetch('/api/sessions', { method: 'DELETE' });
-      return await response.json();
-    } catch (error) {
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
-  async updateModel(model: string): Promise<ChatResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/model`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model })
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Failed to update model:', error);
       return { success: false, error: (error as Error).message };
     }
   }
 }
-
 export const chatService = new ChatService();
-
-export const formatTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleTimeString([], { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-};
-
-export const generateSessionTitle = (firstUserMessage?: string): string => {
-  const now = new Date();
-  const dateTime = now.toLocaleString([], {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-  if (!firstUserMessage || !firstUserMessage.trim()) {
-    return `Chat ${dateTime}`;
-  }
-
-  // Clean and truncate the message
-  const cleanMessage = firstUserMessage.trim().replace(/\s+/g, ' ');
-  const truncated = cleanMessage.length > 40 
-    ? cleanMessage.slice(0, 37) + '...' 
-    : cleanMessage;
-
-  return `${truncated} • ${dateTime}`;
-};
-
-export const renderToolCall = (toolCall: ToolCall): string => {
-  const result = toolCall.result as WeatherResult | MCPResult | ErrorResult | undefined;
-  
-  if (!result) return `⚠️ ${toolCall.name}: No result`;
-  if ('error' in result) return `❌ ${toolCall.name}: ${result.error}`;
-  if ('content' in result) return `🔧 ${toolCall.name}: Executed`;
-  if (toolCall.name === 'get_weather') {
-    const weather = result as WeatherResult;
-    return `🌤️ Weather in ${weather.location}: ${weather.temperature}°C, ${weather.condition}`;
-  }
-
-  return `🔧 ${toolCall.name}: Done`;
-};
